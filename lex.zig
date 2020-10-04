@@ -71,3 +71,8 @@ test "empty source" {
     var lex = Lex.init("");
     std.testing.expectEqual(lex.next().id, .Eof);
 }
+
+test "whitespace source" {
+    var lex = Lex.init(" \t \n \r ");
+    std.testing.expectEqual(lex.next().id, .Eof);
+}
