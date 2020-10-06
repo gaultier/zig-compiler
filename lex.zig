@@ -1,10 +1,10 @@
 const std = @import("std");
 
-const Token = struct {
+pub const Token = struct {
     id: Id,
     loc: Loc,
 
-    const Id = enum {
+    pub const Id = enum {
         BuiltinPrint, LParen, RParen, True, False, Eof, Invalid
     };
 
@@ -21,7 +21,7 @@ const Token = struct {
     };
 };
 
-const Lex = struct {
+pub const Lex = struct {
     source: []const u8,
     index: usize,
 
