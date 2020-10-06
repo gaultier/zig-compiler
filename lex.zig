@@ -67,12 +67,39 @@ const Lex = struct {
     }
 };
 
+const TestToken = struct {
+    id: Token.Id,
+    start: usize,
+    end: usize,
+};
+
+fn testingExpectTokens(source: []const u8, tokens: []const TestToken) void {
+    var lex = Lex.init(source);
+
+    for (tokens) |testToken| {
+        const t = lex.next();
+        std.testing.expectEqual(testToken.id, t.id);
+        std.testing.expectEqual(testToken.start, t.loc.start);
+        std.testing.expectEqual(testToken.end, t.loc.end);
+    }
+}
+
 test "empty source" {
-    var lex = Lex.init("");
-    std.testing.expectEqual(lex.next().id, .Eof);
+    testingExpectTokens("", &[_]TestToken{
+        TestToken{ .id = .Eof, .start = 0, .end = 0 },
+    });
 }
 
 test "whitespace source" {
-    var lex = Lex.init(" \t \n \r ");
-    std.testing.expectEqual(lex.next().id, .Eof);
+    testingExpectTokens(" \t  \n\r ", &[_]TestToken{
+        TestToken{ .id = .Eof, .start = 7, .end = 7 },
+    });
+}
+
+test "parens" {
+    testingExpectTokens(" \t( \n)\r ", &[_]TestToken{
+        TestToken{ .id = .LParen, .start = 2, .end = 3 },
+        TestToken{ .id = .RParen, .start = 5, .end = 6 },
+        TestToken{ .id = .Eof, .start = 8, .end = 8 },
+    });
 }
