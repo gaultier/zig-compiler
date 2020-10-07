@@ -5,7 +5,7 @@ pub const Token = struct {
     loc: Loc,
 
     pub const Id = enum {
-        BuiltinPrint, LParen, RParen, True, False, Eof, Invalid
+        BuiltinPrint, LParen, RParen, True, False, Identifier, Eof, Invalid
     };
 
     pub const Loc = struct {
@@ -29,6 +29,11 @@ pub const Lex = struct {
         return Lex{ .source = source, .index = 0 };
     }
 
+    const State = enum {
+    .start,
+    .identifier,
+    };
+
     pub fn next(self: *Lex) Token {
         var result = Token{
             .id = .Eof,
@@ -37,6 +42,7 @@ pub const Lex = struct {
                 .end = undefined,
             },
         };
+        var state : State = .start;
 
         while (self.index < self.source.len) : (self.index += 1) {
             const c = self.source[self.index];
@@ -55,6 +61,10 @@ pub const Lex = struct {
                     self.index += 1;
                     break;
                 },
+                // 'a'..'z', 'A'..'Z', '_' => {
+        // state = .identifier;
+        // result.id = .Identifier;
+                // },
                 else => {
                     result.id = .Invalid;
                     self.index += 1;
