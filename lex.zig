@@ -30,8 +30,8 @@ pub const Lex = struct {
     }
 
     const State = enum {
-    .start,
-    .identifier,
+        start,
+        identifier,
     };
 
     pub fn next(self: *Lex) Token {
@@ -42,7 +42,7 @@ pub const Lex = struct {
                 .end = undefined,
             },
         };
-        var state : State = .start;
+        var state: State = .start;
 
         while (self.index < self.source.len) : (self.index += 1) {
             const c = self.source[self.index];
@@ -61,10 +61,10 @@ pub const Lex = struct {
                     self.index += 1;
                     break;
                 },
-                // 'a'..'z', 'A'..'Z', '_' => {
-        // state = .identifier;
-        // result.id = .Identifier;
-                // },
+                'a'...'z', 'A'...'Z', '_' => {
+                    state = .identifier;
+                    result.id = .Identifier;
+                },
                 else => {
                     result.id = .Invalid;
                     self.index += 1;
