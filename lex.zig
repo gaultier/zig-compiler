@@ -14,11 +14,18 @@ pub const Token = struct {
     };
 
     const Keyword = struct { str: []const u8, id: Id };
-    pub const keywords = []Keyword{
+    pub const keywords = [_]Keyword{
         Keyword{ .str = "true", .id = .True },
         Keyword{ .str = "false", .id = .False },
-        Keyword{ .str = "@print", .id = .BuiltinPrint },
+        Keyword{ .str = "print", .id = .BuiltinPrint },
     };
+
+    pub fn getKeyword(bytes: []const u8) ?Id {
+        for (keywords) |k| {
+            if (std.mem.eql(u8, k.str, bytes)) return k.id;
+        }
+        return null;
+    }
 };
 
 pub const Lex = struct {
@@ -47,28 +54,39 @@ pub const Lex = struct {
         while (self.index < self.source.len) : (self.index += 1) {
             const c = self.source[self.index];
 
-            switch (c) {
-                ' ', '\n', '\t', '\r' => {
-                    result.loc.start = self.index + 1;
+            switch (state) {
+                .start => switch (c) {
+                    ' ', '\n', '\t', '\r' => {
+                        result.loc.start = self.index + 1;
+                    },
+                    '(' => {
+                        result.id = .LParen;
+                        self.index += 1;
+                        break;
+                    },
+                    ')' => {
+                        result.id = .RParen;
+                        self.index += 1;
+                        break;
+                    },
+                    'a'...'z', 'A'...'Z', '_' => {
+                        state = .identifier;
+                        result.id = .Identifier;
+                    },
+                    else => {
+                        result.id = .Invalid;
+                        self.index += 1;
+                        break;
+                    },
                 },
-                '(' => {
-                    result.id = .LParen;
-                    self.index += 1;
-                    break;
-                },
-                ')' => {
-                    result.id = .RParen;
-                    self.index += 1;
-                    break;
-                },
-                'a'...'z', 'A'...'Z', '_' => {
-                    state = .identifier;
-                    result.id = .Identifier;
-                },
-                else => {
-                    result.id = .Invalid;
-                    self.index += 1;
-                    break;
+                .identifier => switch (c) {
+                    'a'...'z', 'A'...'Z', '_' => {},
+                    else => {
+                        if (Token.getKeyword(self.source[result.loc.start..self.index])) |id| {
+                            result.id = id;
+                        }
+                        break;
+                    },
                 },
             }
         }
@@ -111,5 +129,13 @@ test "parens" {
         TestToken{ .id = .LParen, .start = 2, .end = 3 },
         TestToken{ .id = .RParen, .start = 5, .end = 6 },
         TestToken{ .id = .Eof, .start = 8, .end = 8 },
+    });
+}
+
+test "keywords" {
+    testingExpectTokens(" true  false print ", &[_]TestToken{
+        TestToken{ .id = .True, .start = 1, .end = 5 },
+        TestToken{ .id = .False, .start = 7, .end = 12 },
+        TestToken{ .id = .BuiltinPrint, .start = 13, .end = 18 },
     });
 }
