@@ -76,10 +76,26 @@ const Parser = struct {
 };
 
 test "eatToken" {
-    var parser = try Parser.init(" true false false ", std.testing.allocator);
+    var parser = try Parser.init(" true false  ", std.testing.allocator);
     defer parser.deinit();
 
     std.testing.expectEqual(@as(?usize, 0), parser.eatToken(Token.Id.True));
     std.testing.expectEqual(@as(?usize, 1), parser.eatToken(Token.Id.False));
     std.testing.expectEqual(@as(?usize, null), parser.eatToken(Token.Id.BuiltinPrint));
+}
+
+test "parsePrimaryType" {
+    var parser = try Parser.init(" true false ( ", std.testing.allocator);
+    defer parser.deinit();
+
+    const nodeTrue = try parser.parsePrimaryType();
+    // defer parser.allocator.destroy(nodeTrue.?.*);
+    std.testing.expectEqual(Node.Tag.BoolLiteral, nodeTrue.?.*.tag);
+
+    const nodeFalse = try parser.parsePrimaryType();
+    // defer parser.allocator.destroy(nodeFalse.?.*);
+    std.testing.expectEqual(Node.Tag.BoolLiteral, nodeFalse.?.*.tag);
+
+    const nodeEof = try parser.parsePrimaryType();
+    std.testing.expectEqual(@as(?*Node, null), nodeEof);
 }
