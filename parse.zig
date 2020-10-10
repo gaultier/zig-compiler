@@ -1,14 +1,17 @@
 const std = @import("std");
-const lex = @import("lex");
+const lex = @import("lex.zig");
+const ast = @import("ast.zig");
+const Token = lex.Token;
+const TokenIndex = ast.TokenIndex;
 
 const Parser = struct {
     token_ids: []const Token.Id,
     token_locs: []const Token.Loc,
     source: []const u8,
     tok_i: usize,
-    allocator: std.mem.Allocator,
+    allocator: *std.mem.Allocator,
 
-    fn init(source: []const u8, allocator: std.mem.Allocator) !Parser {
+    fn init(source: []const u8, allocator: *std.mem.Allocator) !Parser {
         var token_ids = std.ArrayList(Token.Id).init(allocator);
         defer token_ids.deinit();
         try token_ids.ensureCapacity(source.len / 8); // Estimate
@@ -42,4 +45,25 @@ const Parser = struct {
     fn eatToken(p: *Parser, id: Token.Id) ?TokenIndex {
         return if (p.token_ids[p.tok_i] == id) p.nextToken() else null;
     }
+
+    fn nextToken(p: *Parser) TokenIndex {
+        const result = p.tok_i;
+        p.tok_i += 1;
+        std.debug.assert(p.token_ids[result] != .LineComment);
+        if (p.tok_i >= p.token_ids.len) return result;
+
+        while (true) {
+            if (p.token_ids[p.tok_i] != .LineComment) return result;
+            p.tok_i += 1;
+        }
+    }
 };
+
+test "eatToken" {
+    var parser = try Parser.init(" true false false ", std.testing.allocator);
+    defer parser.deinit();
+
+    std.testing.expectEqual(@as(?usize, 0), parser.eatToken(Token.Id.True));
+    std.testing.expectEqual(@as(?usize, 1), parser.eatToken(Token.Id.False));
+    std.testing.expectEqual(@as(?usize, null), parser.eatToken(Token.Id.BuiltinPrint));
+}

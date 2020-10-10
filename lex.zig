@@ -5,7 +5,7 @@ pub const Token = struct {
     loc: Loc,
 
     pub const Id = enum {
-        BuiltinPrint, LParen, RParen, True, False, Identifier, Eof, Invalid
+        BuiltinPrint, LParen, RParen, True, False, Identifier, LineComment, Eof, Invalid
     };
 
     pub const Loc = struct {
