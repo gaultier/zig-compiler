@@ -21,4 +21,17 @@ pub const Node = struct {
             return rParen;
         }
     };
+
+    pub const OneToken = struct {
+        base: Node,
+        token: TokenIndex,
+
+        pub fn firstToken(self: *const OneToken) TokenIndex {
+            return self.token;
+        }
+
+        pub fn lastToken(self: *const OneToken) TokenIndex {
+            return self.token;
+        }
+    };
 };

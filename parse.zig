@@ -3,6 +3,7 @@ const lex = @import("lex.zig");
 const ast = @import("ast.zig");
 const Token = lex.Token;
 const TokenIndex = ast.TokenIndex;
+const Node = ast.Node;
 
 const Parser = struct {
     token_ids: []const Token.Id,
@@ -56,6 +57,21 @@ const Parser = struct {
             if (p.token_ids[p.tok_i] != .LineComment) return result;
             p.tok_i += 1;
         }
+    }
+
+    fn parsePrimaryType(p: *Parser) !?*Node {
+        if (p.eatToken(.True)) |token| return p.createLiteral(.BoolLiteral, token);
+        if (p.eatToken(.False)) |token| return p.createLiteral(.BoolLiteral, token);
+        return null;
+    }
+
+    fn createLiteral(p: *Parser, tag: ast.Node.Tag, token: TokenIndex) !*Node {
+        const result = try p.allocator.create(Node.OneToken);
+        result.* = .{
+            .base = .{ .tag = tag },
+            .token = token,
+        };
+        return &result.base;
     }
 };
 
