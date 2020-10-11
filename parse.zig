@@ -91,12 +91,14 @@ const Parser = struct {
     fn parseBuiltinPrint(p: *Parser) std.mem.Allocator.Error!?*Node {
         if (p.eatToken(Token.Id.BuiltinPrint)) |token| {
             p.expectToken(.LParen);
+            const arg = try p.parsePrimaryType();
             const result = try p.arena.allocator.create(Node.BuiltinPrint);
             errdefer p.arena.allocator.destroy(result);
 
             result.* = .{
                 .base = .{ .tag = tag },
                 .mainToken = token,
+                .arg = arg,
                 .rParen = p.expectToken(.RParen),
             };
         } else return null;
@@ -145,6 +147,20 @@ test "eatToken" {
 
 test "parsePrimaryType" {
     var parser = try Parser.init(" true false  ", std.testing.allocator);
+    defer parser.deinit();
+
+    const nodes = try parser.parse();
+    defer parser.allocator.free(nodes);
+    std.testing.expectEqual(@as(usize, 2), nodes.len);
+
+    std.testing.expectEqual(Node.Tag.BoolLiteral, nodes[0].*.tag);
+
+    const nodeFalse = try parser.parse();
+    std.testing.expectEqual(Node.Tag.BoolLiteral, nodes[1].*.tag);
+}
+
+test "parseBuiltinPrint" {
+    var parser = try Parser.init(" print(true)", std.testing.allocator);
     defer parser.deinit();
 
     const nodes = try parser.parse();
