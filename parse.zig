@@ -5,6 +5,8 @@ const Token = lex.Token;
 const TokenIndex = ast.TokenIndex;
 const Node = ast.Node;
 
+pub const Error = error{ParseError} || std.mem.Allocator.Error;
+
 const Parser = struct {
     token_ids: []const Token.Id,
     token_locs: []const Token.Loc,
@@ -63,10 +65,41 @@ const Parser = struct {
         }
     }
 
+    fn expectToken(p: *Parser, id: Token.Id) Error!TokenIndex {
+        return (try p.expectTokenRecoverable(id)) orelse error.ParseError;
+    }
+
+    fn expectTokenRecoverable(p: *Parser, id: Token.Id) !?TokenIndex {
+        const token = p.nextToken();
+        if (p.token_ids[token] != id) {
+            // try p.errors.append(p.gpa, .{
+            //     .ExpectedToken = .{ .token = token, .expected_id = id },
+            // });
+            // go back so that we can recover properly
+            // p.putBackToken(token);
+            return null;
+        }
+        return token;
+    }
+
     fn parsePrimaryType(p: *Parser) std.mem.Allocator.Error!?*Node {
         if (p.eatToken(.True)) |token| return p.createLiteral(.BoolLiteral, token);
         if (p.eatToken(.False)) |token| return p.createLiteral(.BoolLiteral, token);
         return null;
+    }
+
+    fn parseBuiltinPrint(p: *Parser) std.mem.Allocator.Error!?*Node {
+        if (p.eatToken(Token.Id.BuiltinPrint)) |token| {
+            p.expectToken(.LParen);
+            const result = try p.arena.allocator.create(Node.BuiltinPrint);
+            errdefer p.arena.allocator.destroy(result);
+
+            result.* = .{
+                .base = .{ .tag = tag },
+                .mainToken = token,
+                .rParen = p.expectToken(.RParen),
+            };
+        } else return null;
     }
 
     fn createLiteral(p: *Parser, tag: ast.Node.Tag, token: TokenIndex) !*Node {
@@ -78,7 +111,7 @@ const Parser = struct {
         return &result.base;
     }
 
-    pub fn parse(p: *Parser) std.mem.Allocator.Error![]*Node {
+    pub fn parse(p: *Parser) Error![]*Node {
         var list = std.ArrayList(*Node).init(p.allocator);
         defer list.deinit();
 
@@ -93,7 +126,7 @@ const Parser = struct {
                 .Eof => break,
                 else => {
                     // try p.errors.append();
-                    break;
+                    return error.ParseError;
                 },
             }
         }
@@ -111,7 +144,7 @@ test "eatToken" {
 }
 
 test "parsePrimaryType" {
-    var parser = try Parser.init(" true false ( ", std.testing.allocator);
+    var parser = try Parser.init(" true false  ", std.testing.allocator);
     defer parser.deinit();
 
     const nodes = try parser.parse();
