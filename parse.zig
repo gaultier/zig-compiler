@@ -11,6 +11,7 @@ const Parser = struct {
     source: []const u8,
     tok_i: usize,
     allocator: *std.mem.Allocator,
+    arena: std.heap.ArenaAllocator,
 
     fn init(source: []const u8, allocator: *std.mem.Allocator) !Parser {
         var token_ids = std.ArrayList(Token.Id).init(allocator);
@@ -35,12 +36,14 @@ const Parser = struct {
             .token_locs = token_locs.toOwnedSlice(),
             .source = source,
             .allocator = allocator,
+            .arena = std.heap.ArenaAllocator.init(allocator),
         };
     }
 
     fn deinit(p: *Parser) void {
         p.allocator.free(p.token_ids);
         p.allocator.free(p.token_locs);
+        p.arena.deinit();
     }
 
     fn eatToken(p: *Parser, id: Token.Id) ?TokenIndex {
@@ -66,7 +69,7 @@ const Parser = struct {
     }
 
     fn createLiteral(p: *Parser, tag: ast.Node.Tag, token: TokenIndex) !*Node {
-        const result = try p.allocator.create(Node.OneToken);
+        const result = try p.arena.allocator.create(Node.OneToken);
         result.* = .{
             .base = .{ .tag = tag },
             .token = token,
@@ -89,11 +92,9 @@ test "parsePrimaryType" {
     defer parser.deinit();
 
     const nodeTrue = try parser.parsePrimaryType();
-    // defer parser.allocator.destroy(nodeTrue.?.*);
     std.testing.expectEqual(Node.Tag.BoolLiteral, nodeTrue.?.*.tag);
 
     const nodeFalse = try parser.parsePrimaryType();
-    // defer parser.allocator.destroy(nodeFalse.?.*);
     std.testing.expectEqual(Node.Tag.BoolLiteral, nodeFalse.?.*.tag);
 
     const nodeEof = try parser.parsePrimaryType();
