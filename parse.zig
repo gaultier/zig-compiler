@@ -12,8 +12,9 @@ const Parser = struct {
     tok_i: usize,
     allocator: *std.mem.Allocator,
     arena: std.heap.ArenaAllocator,
+    // errors: std.ArrayListUnmanaged(AstError),
 
-    fn init(source: []const u8, allocator: *std.mem.Allocator) !Parser {
+    fn init(source: []const u8, allocator: *std.mem.Allocator) std.mem.Allocator.Error!Parser {
         var token_ids = std.ArrayList(Token.Id).init(allocator);
         defer token_ids.deinit();
         try token_ids.ensureCapacity(source.len / 8); // Estimate
@@ -62,7 +63,7 @@ const Parser = struct {
         }
     }
 
-    fn parsePrimaryType(p: *Parser) !?*Node {
+    fn parsePrimaryType(p: *Parser) std.mem.Allocator.Error!?*Node {
         if (p.eatToken(.True)) |token| return p.createLiteral(.BoolLiteral, token);
         if (p.eatToken(.False)) |token| return p.createLiteral(.BoolLiteral, token);
         return null;
@@ -75,6 +76,28 @@ const Parser = struct {
             .token = token,
         };
         return &result.base;
+    }
+
+    pub fn parse(p: *Parser) std.mem.Allocator.Error![]*Node {
+        var list = std.ArrayList(*Node).init(p.allocator);
+        defer list.deinit();
+
+        while (true) {
+            if (try p.parsePrimaryType()) |node| {
+                try list.append(node);
+                continue;
+            }
+
+            const next = p.token_ids[p.tok_i];
+            switch (next) {
+                .Eof => break,
+                else => {
+                    // try p.errors.append();
+                    break;
+                },
+            }
+        }
+        return list.toOwnedSlice();
     }
 };
 
@@ -91,12 +114,12 @@ test "parsePrimaryType" {
     var parser = try Parser.init(" true false ( ", std.testing.allocator);
     defer parser.deinit();
 
-    const nodeTrue = try parser.parsePrimaryType();
-    std.testing.expectEqual(Node.Tag.BoolLiteral, nodeTrue.?.*.tag);
+    const nodes = try parser.parse();
+    defer parser.allocator.free(nodes);
+    std.testing.expectEqual(@as(usize, 2), nodes.len);
 
-    const nodeFalse = try parser.parsePrimaryType();
-    std.testing.expectEqual(Node.Tag.BoolLiteral, nodeFalse.?.*.tag);
+    std.testing.expectEqual(Node.Tag.BoolLiteral, nodes[0].*.tag);
 
-    const nodeEof = try parser.parsePrimaryType();
-    std.testing.expectEqual(@as(?*Node, null), nodeEof);
+    const nodeFalse = try parser.parse();
+    std.testing.expectEqual(Node.Tag.BoolLiteral, nodes[1].*.tag);
 }
