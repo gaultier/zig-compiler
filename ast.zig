@@ -9,7 +9,8 @@ pub const Node = struct {
     };
 
     pub const BuiltinPrint = struct {
-        arg: Node,
+        base: Node,
+        arg: *Node,
         mainToken: TokenIndex,
         rParen: TokenIndex,
 
