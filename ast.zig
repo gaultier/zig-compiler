@@ -3,9 +3,23 @@ pub const TokenIndex = usize;
 pub const Node = struct {
     tag: Tag,
 
+    pub fn castTag(base: *Node, comptime tag: Tag) ?*tag.Type() {
+        if (base.tag == tag) {
+            return @fieldParentPtr(tag.Type(), "base", base);
+        }
+        return null;
+    }
+
     pub const Tag = enum {
         BoolLiteral,
         BuiltinPrint,
+
+        pub fn Type(tag: Tag) type {
+            return switch (tag) {
+                .BoolLiteral => OneToken,
+                .BuiltinPrint => BuiltinPrint,
+            };
+        }
     };
 
     pub const BuiltinPrint = struct {
