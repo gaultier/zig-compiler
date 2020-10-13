@@ -30,12 +30,12 @@ pub const Node = struct {
         mainToken: TokenIndex,
         rParen: TokenIndex,
 
-        fn firstToken(base: *const BuiltinPrint) TokenIndex {
-            return mainToken;
+        pub fn firstToken(base: *const BuiltinPrint) TokenIndex {
+            return base.mainToken;
         }
 
-        fn lastToken(base: *const BuiltinPrint) TokenIndex {
-            return rParen;
+        pub fn lastToken(base: *const BuiltinPrint) TokenIndex {
+            return base.rParen;
         }
 
         pub fn iterate(self: *const BuiltinPrint, index: usize) ?*Node {

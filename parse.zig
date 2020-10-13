@@ -151,7 +151,7 @@ test "eatToken" {
 }
 
 test "parseBuiltinPrint" {
-    var parser = try Parser.init(" print(true)", std.testing.allocator);
+    var parser = try Parser.init(" print(true)\t", std.testing.allocator);
     defer parser.deinit();
 
     const nodes = try parser.parse();
@@ -162,12 +162,11 @@ test "parseBuiltinPrint" {
     std.testing.expectEqual(Node.Tag.BuiltinPrint, node.tag);
 
     var builtinPrint = node.castTag(.BuiltinPrint).?;
-    std.testing.expectEqual(@as(usize, 0), builtinPrint.mainToken);
-    std.testing.expectEqual(@as(usize, 3), builtinPrint.rParen);
-
     var arg = builtinPrint.arg.castTag(.BoolLiteral).?;
-    std.testing.expectEqual(@as(usize, 2), arg.token);
 
     const arg_loc = parser.token_locs[arg.token];
+    const first_loc = parser.token_locs[builtinPrint.firstToken()];
+    const last_loc = parser.token_locs[builtinPrint.lastToken()];
     std.testing.expectEqualSlices(u8, "true", parser.source[arg_loc.start..arg_loc.end]);
+    std.testing.expectEqualSlices(u8, "print(true)", parser.source[first_loc.start..last_loc.end]);
 }
