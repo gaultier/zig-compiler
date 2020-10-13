@@ -172,10 +172,14 @@ test "parseBuiltinPrint" {
     defer parser.allocator.free(nodes);
     std.testing.expectEqual(@as(usize, 1), nodes.len);
 
-    var node = nodes[0].*;
+    var node = nodes[0];
     std.testing.expectEqual(Node.Tag.BuiltinPrint, node.tag);
 
     var builtinPrint = node.castTag(.BuiltinPrint).?;
-    var arg = builtinPrint.arg.castTag(.BoolLiteral).?;
-    std.testing.expectEqual(@as(usize, 7), arg.token);
+    std.testing.expectEqual(@as(usize, 0), builtinPrint.mainToken);
+    // var arg = builtinPrint.arg.castTag(.BoolLiteral).?;
+    // std.testing.expectEqual(@as(usize, 7), arg.token);
+
+    std.debug.warn("\n----\n", .{});
+    node.dump(0);
 }

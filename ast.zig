@@ -1,3 +1,5 @@
+const std = @import("std");
+
 pub const TokenIndex = usize;
 
 pub const Node = struct {
@@ -28,12 +30,16 @@ pub const Node = struct {
         mainToken: TokenIndex,
         rParen: TokenIndex,
 
-        fn firstToken(base: *const Node) TokenIndex {
+        fn firstToken(base: *const BuiltinPrint) TokenIndex {
             return mainToken;
         }
 
-        fn lastToken(base: *const Node) TokenIndex {
+        fn lastToken(base: *const BuiltinPrint) TokenIndex {
             return rParen;
+        }
+
+        pub fn iterate(self: *const BuiltinPrint, index: usize) ?*Node {
+            if (index < 1) return self.arg else return null;
         }
     };
 
@@ -48,5 +54,34 @@ pub const Node = struct {
         pub fn lastToken(self: *const OneToken) TokenIndex {
             return self.token;
         }
+
+        pub fn iterate(self: *const OneToken, index: usize) ?*Node {
+            return null;
+        }
     };
+
+    pub fn iterate(base: *Node, index: usize) ?*Node {
+        inline for (@typeInfo(Tag).Enum.fields) |field| {
+            const tag = @intToEnum(Tag, field.value);
+            if (base.tag == tag) {
+                return @fieldParentPtr(tag.Type(), "base", base).iterate(index);
+            }
+        }
+        unreachable;
+    }
+
+    pub fn dump(self: *Node, indent: usize) void {
+        {
+            var i: usize = 0;
+            while (i < indent) : (i += 1) {
+                std.debug.warn(" ", .{});
+            }
+        }
+        std.debug.warn("{}\n", .{@tagName(self.tag)});
+
+        var child_i: usize = 0;
+        while (self.iterate(child_i)) |child| : (child_i += 1) {
+            child.dump(indent + 2);
+        }
+    }
 };
