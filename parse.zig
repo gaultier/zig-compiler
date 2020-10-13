@@ -177,9 +177,8 @@ test "parseBuiltinPrint" {
 
     var builtinPrint = node.castTag(.BuiltinPrint).?;
     std.testing.expectEqual(@as(usize, 0), builtinPrint.mainToken);
-    // var arg = builtinPrint.arg.castTag(.BoolLiteral).?;
-    // std.testing.expectEqual(@as(usize, 7), arg.token);
+    std.testing.expectEqual(@as(usize, 3), builtinPrint.rParen);
 
-    std.debug.warn("\n----\n", .{});
-    node.dump(0);
+    var arg = builtinPrint.arg.castTag(.BoolLiteral).?;
+    std.testing.expectEqual(@as(usize, 2), arg.token);
 }
