@@ -21,6 +21,37 @@ pub const Registers = enum {
     r15,
 };
 
+pub const Asm = struct {
+    text_section: std.ArrayList(Op),
+
+    pub fn init(allocator: *std.mem.Allocator) Asm {
+        return Asm{
+            .text_section = std.ArrayList(Op).init(allocator),
+        };
+    }
+
+    pub fn deinit(a: *Asm) void {
+        a.text_section.deinit();
+    }
+
+    pub fn dump(a: Asm) void {
+        std.debug.warn("\n.text\n", .{});
+        // FIXME: for now, hardcoded to one main section
+        std.debug.warn(".globl _main\n_main:\n", .{});
+        for (a.text_section.items) |op| {
+            switch (op) {
+                .Syscall => |syscall| {
+                    std.debug.warn("\tmovq %rax, {}\n", .{syscall.syscall_number});
+                    std.debug.warn("\tmovq %rdi, {}\n", .{syscall.args[0]});
+                    std.debug.warn("\tmovq %rsi, {}\n", .{syscall.args[1]});
+                    std.debug.warn("\tmovq %rdx, {}\n", .{syscall.args[2]});
+                },
+                else => unreachable,
+            }
+        }
+    }
+};
+
 pub const Op = union(enum) {
     Syscall: struct {
         syscall_number: usize,
@@ -36,12 +67,12 @@ const stderr: usize = 2;
 const syscall_write_osx: usize = 0x2000004;
 
 pub const Emitter = struct {
-    pub fn emit(node: *Node, allocator: *std.mem.Allocator) std.mem.Allocator.Error![]Op {
-        var ops = std.ArrayList(Op).init(allocator);
-        defer ops.deinit();
+    pub fn emit(node: *Node, allocator: *std.mem.Allocator) std.mem.Allocator.Error!Asm {
+        var a = Asm.init(allocator);
+        errdefer a.deinit();
 
         if (node.castTag(.BuiltinPrint)) |builtinprint| {
-            try ops.append(Op{
+            try a.text_section.append(Op{
                 .Syscall = .{
                     .syscall_number = syscall_write_osx,
                     .args = [8]usize{
@@ -58,21 +89,7 @@ pub const Emitter = struct {
             }); // FIXME: linux?
         }
 
-        return ops.toOwnedSlice();
-    }
-
-    pub fn dump(ops: []Op) void {
-        for (ops) |op| {
-            switch (op) {
-                .Syscall => |syscall| {
-                    std.debug.warn("mov rax, {}\n", .{syscall.syscall_number});
-                    std.debug.warn("mov rdi, {}\n", .{syscall.args[0]});
-                    std.debug.warn("mov rsi, {}\n", .{syscall.args[1]});
-                    std.debug.warn("mov rdx, {}\n", .{syscall.args[2]});
-                },
-                else => unreachable,
-            }
-        }
+        return a;
     }
 };
 
@@ -88,11 +105,11 @@ test "emit" {
 
     var node = nodes[0];
 
-    const ops = try Emitter.emit(node, std.testing.allocator);
-    defer std.testing.allocator.free(ops);
+    var a = try Emitter.emit(node, std.testing.allocator);
+    defer a.deinit();
 
-    std.testing.expectEqual(@as(usize, 1), ops.len); // FIXME
+    std.testing.expectEqual(@as(usize, 1), a.text_section.items.len); // FIXME
 
-    Emitter.dump(ops);
+    a.dump();
     // std.testing.expectEqual(Op.Syscall{ .syscall_number = syscall_write_osx, .args = .{ stdout, 65, 1 } }, ops[0]); // FIXME
 }
