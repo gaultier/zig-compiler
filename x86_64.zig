@@ -2,7 +2,7 @@ const ast = @import("ast.zig");
 const std = @import("std");
 const Node = ast.Node;
 
-pub const Registers = enum {
+pub const Register = enum {
     rax,
     rbx,
     rcx,
@@ -19,6 +19,27 @@ pub const Registers = enum {
     r13,
     r14,
     r15,
+
+    fn toString(r: Register) []const u8 {
+        return switch (r) {
+            .rax => "%rax",
+            .rbx => "%rbx",
+            .rcx => "%rcx",
+            .rdx => "%rdx",
+            .rbp => "%rbp",
+            .rsp => "%rsp",
+            .rsi => "%rsi",
+            .rdi => "%rdi",
+            .r8 => "%r8",
+            .r9 => "%r9",
+            .r10 => "%r10",
+            .r11 => "%r11",
+            .r12 => "%r12",
+            .r13 => "%r13",
+            .r14 => "%r14",
+            .r15 => "%r15",
+        };
+    }
 };
 
 pub const Asm = struct {
@@ -41,10 +62,19 @@ pub const Asm = struct {
         for (a.text_section.items) |op| {
             switch (op) {
                 .Syscall => |syscall| {
-                    std.debug.warn("\tmovq %rax, {}\n", .{syscall.syscall_number});
-                    std.debug.warn("\tmovq %rdi, {}\n", .{syscall.args[0]});
-                    std.debug.warn("\tmovq %rsi, {}\n", .{syscall.args[1]});
-                    std.debug.warn("\tmovq %rdx, {}\n", .{syscall.args[2]});
+                    std.debug.warn("\tmovq {}, %rax\n", .{syscall.syscall_number});
+
+                    var i: u8 = 0;
+                    while (i < syscall.cardinality) : (i += 1) {
+                        std.debug.warn("\tmovq {}, {}\n", .{ syscall.args[i], @intToEnum(Register, @intCast(u4, i)).toString() });
+                    }
+                    std.debug.warn("\tsyscall\n", .{});
+
+                    i = 0;
+                    while (i < syscall.cardinality) : (i += 1) {
+                        std.debug.warn("\tmovq 0, {}\n", .{@intToEnum(Register, @intCast(u4, i)).toString()});
+                    }
+                    std.debug.warn("\n", .{});
                 },
                 else => unreachable,
             }
@@ -55,6 +85,7 @@ pub const Asm = struct {
 pub const Op = union(enum) {
     Syscall: struct {
         syscall_number: usize,
+        cardinality: u8,
         args: [8]usize,
     },
     IntegerLiteral: usize,
@@ -64,6 +95,7 @@ const stdin: usize = 0;
 const stdout: usize = 1;
 const stderr: usize = 2;
 
+const syscall_exit_osx: usize = 0x2000001;
 const syscall_write_osx: usize = 0x2000004;
 
 pub const Emitter = struct {
@@ -75,6 +107,7 @@ pub const Emitter = struct {
             try a.text_section.append(Op{
                 .Syscall = .{
                     .syscall_number = syscall_write_osx,
+                    .cardinality = 3,
                     .args = [8]usize{
                         stdout,
                         65, // FIXME
@@ -88,6 +121,23 @@ pub const Emitter = struct {
                 },
             }); // FIXME: linux?
         }
+
+        try a.text_section.append(Op{
+            .Syscall = .{
+                .syscall_number = syscall_exit_osx,
+                .cardinality = 1,
+                .args = [8]usize{
+                    0,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                },
+            },
+        });
 
         return a;
     }
@@ -108,7 +158,7 @@ test "emit" {
     var a = try Emitter.emit(node, std.testing.allocator);
     defer a.deinit();
 
-    std.testing.expectEqual(@as(usize, 1), a.text_section.items.len); // FIXME
+    std.testing.expectEqual(@as(usize, 2), a.text_section.items.len); // FIXME
 
     a.dump();
     // std.testing.expectEqual(Op.Syscall{ .syscall_number = syscall_write_osx, .args = .{ stdout, 65, 1 } }, ops[0]); // FIXME
