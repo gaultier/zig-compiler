@@ -44,18 +44,31 @@ pub const Register = enum {
 
 pub const Asm = struct {
     text_section: std.ArrayList(Op),
+    data_section: std.ArrayList(Op),
 
     pub fn init(allocator: *std.mem.Allocator) Asm {
         return Asm{
             .text_section = std.ArrayList(Op).init(allocator),
+            .data_section = std.ArrayList(Op).init(allocator),
         };
     }
 
     pub fn deinit(a: *Asm) void {
         a.text_section.deinit();
+        a.data_section.deinit();
     }
 
     pub fn dump(a: Asm) void {
+        std.debug.warn("\n.data\n", .{});
+        for (a.data_section.items) |op| {
+            switch (op) {
+                .StringLabel => |stringLabel| {
+                    std.debug.warn(".L{}: .asciz \"{}\"\n", .{ stringLabel.label_id, stringLabel.string });
+                },
+                else => unreachable,
+            }
+        }
+
         std.debug.warn("\n.text\n", .{});
         // FIXME: for now, hardcoded to one main section
         std.debug.warn(".globl _main\n_main:\n", .{});
@@ -89,6 +102,10 @@ pub const Op = union(enum) {
         args: [8]usize,
     },
     IntegerLiteral: usize,
+    StringLabel: struct {
+        label_id: usize,
+        string: []const u8,
+    },
 };
 
 const stdin: usize = 0;
@@ -102,6 +119,8 @@ pub const Emitter = struct {
     pub fn emit(node: *Node, allocator: *std.mem.Allocator) std.mem.Allocator.Error!Asm {
         var a = Asm.init(allocator);
         errdefer a.deinit();
+
+        var label_id: usize = 0;
 
         if (node.castTag(.BuiltinPrint)) |builtinprint| {
             try a.text_section.append(Op{
@@ -119,7 +138,15 @@ pub const Emitter = struct {
                         undefined,
                     },
                 },
-            }); // FIXME: linux?
+            });
+
+            label_id += 1;
+            try a.data_section.append(Op{
+                .StringLabel = .{
+                    .label_id = label_id,
+                    .string = "true", // FIXME
+                },
+            });
         }
 
         try a.text_section.append(Op{
