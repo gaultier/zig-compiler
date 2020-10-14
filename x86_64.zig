@@ -60,6 +60,20 @@ pub const Emitter = struct {
 
         return ops.toOwnedSlice();
     }
+
+    pub fn dump(ops: []Op) void {
+        for (ops) |op| {
+            switch (op) {
+                .Syscall => |syscall| {
+                    std.debug.warn("mov rax, {}\n", .{syscall.syscall_number});
+                    std.debug.warn("mov rdi, {}\n", .{syscall.args[0]});
+                    std.debug.warn("mov rsi, {}\n", .{syscall.args[1]});
+                    std.debug.warn("mov rdx, {}\n", .{syscall.args[2]});
+                },
+                else => unreachable,
+            }
+        }
+    }
 };
 
 test "emit" {
@@ -78,5 +92,7 @@ test "emit" {
     defer std.testing.allocator.free(ops);
 
     std.testing.expectEqual(@as(usize, 1), ops.len); // FIXME
+
+    Emitter.dump(ops);
     // std.testing.expectEqual(Op.Syscall{ .syscall_number = syscall_write_osx, .args = .{ stdout, 65, 1 } }, ops[0]); // FIXME
 }
