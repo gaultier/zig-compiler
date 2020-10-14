@@ -7,7 +7,7 @@ const Node = ast.Node;
 
 pub const Error = error{ParseError} || std.mem.Allocator.Error;
 
-const Parser = struct {
+pub const Parser = struct {
     token_ids: []const Token.Id,
     token_locs: []const Token.Loc,
     source: []const u8,
@@ -16,7 +16,7 @@ const Parser = struct {
     arena: std.heap.ArenaAllocator,
     // errors: std.ArrayListUnmanaged(AstError),
 
-    fn init(source: []const u8, allocator: *std.mem.Allocator) std.mem.Allocator.Error!Parser {
+    pub fn init(source: []const u8, allocator: *std.mem.Allocator) std.mem.Allocator.Error!Parser {
         var token_ids = std.ArrayList(Token.Id).init(allocator);
         defer token_ids.deinit();
         try token_ids.ensureCapacity(source.len / 8); // Estimate
@@ -43,7 +43,7 @@ const Parser = struct {
         };
     }
 
-    fn deinit(p: *Parser) void {
+    pub fn deinit(p: *Parser) void {
         p.allocator.free(p.token_ids);
         p.allocator.free(p.token_locs);
         p.arena.deinit();
