@@ -19,6 +19,7 @@ pub const Register = enum {
     r13,
     r14,
     r15,
+    rip,
 
     fn toString(r: Register) []const u8 {
         return switch (r) {
@@ -29,6 +30,7 @@ pub const Register = enum {
             .rbp => "%rbp",
             .rsp => "%rsp",
             .rsi => "%rsi",
+            .rip => "%rip",
             .rdi => "%rdi",
             .r8 => "%r8",
             .r9 => "%r9",
@@ -38,6 +40,16 @@ pub const Register = enum {
             .r13 => "%r13",
             .r14 => "%r14",
             .r15 => "%r15",
+        };
+    }
+
+    fn fnArg(position: u16) ?Register {
+        return switch (position) {
+            0 => .rax,
+            1 => .rdi,
+            2 => .rsi,
+            3 => .rdx,
+            else => null, // TODO: Implement more
         };
     }
 };
@@ -75,17 +87,34 @@ pub const Asm = struct {
         for (a.text_section.items) |op| {
             switch (op) {
                 .Syscall => |syscall| {
-                    std.debug.warn("\tmovq {}, %rax\n", .{syscall.syscall_number});
+                    std.debug.warn("\tmovq ${}, {}\n", .{
+                        syscall.syscall_number, Register.fnArg(@intCast(u16, 0)).?.toString(),
+                    });
 
-                    var i: u8 = 0;
-                    while (i < syscall.cardinality) : (i += 1) {
-                        std.debug.warn("\tmovq {}, {}\n", .{ syscall.args[i], @intToEnum(Register, @intCast(u4, i)).toString() });
+                    for (syscall.args.items) |arg, i| {
+                        const register = Register.fnArg(@intCast(u16, i + 1));
+                        switch (arg) {
+                            .IntegerLiteral => |integerLiteral| {
+                                std.debug.warn("\tmovq ${}, {}\n", .{
+                                    integerLiteral,
+                                    register.?.toString(),
+                                });
+                            },
+                            .LabelAddress => |label_id| {
+                                std.debug.warn("\tleaq .L{}({}), {}\n", .{
+                                    label_id,
+                                    Register.rip.toString(),
+                                    register.?.toString(),
+                                });
+                            },
+                            else => unreachable,
+                        }
                     }
                     std.debug.warn("\tsyscall\n", .{});
 
-                    i = 0;
-                    while (i < syscall.cardinality) : (i += 1) {
-                        std.debug.warn("\tmovq 0, {}\n", .{@intToEnum(Register, @intCast(u4, i)).toString()});
+                    for (syscall.args.items) |_, i| {
+                        const register = Register.fnArg(@intCast(u16, i + 1));
+                        std.debug.warn("\tmovq $0, {}\n", .{register.?.toString()});
                     }
                     std.debug.warn("\n", .{});
                 },
@@ -98,14 +127,14 @@ pub const Asm = struct {
 pub const Op = union(enum) {
     Syscall: struct {
         syscall_number: usize,
-        cardinality: u8,
-        args: [8]usize,
+        args: std.ArrayList(Op),
     },
     IntegerLiteral: usize,
     StringLabel: struct {
         label_id: usize,
         string: []const u8,
     },
+    LabelAddress: usize,
 };
 
 const stdin: usize = 0;
@@ -123,23 +152,6 @@ pub const Emitter = struct {
         var label_id: usize = 0;
 
         if (node.castTag(.BuiltinPrint)) |builtinprint| {
-            try a.text_section.append(Op{
-                .Syscall = .{
-                    .syscall_number = syscall_write_osx,
-                    .cardinality = 3,
-                    .args = [8]usize{
-                        stdout,
-                        65, // FIXME
-                        1, // FIXME
-                        undefined,
-                        undefined,
-                        undefined,
-                        undefined,
-                        undefined,
-                    },
-                },
-            });
-
             label_id += 1;
             try a.data_section.append(Op{
                 .StringLabel = .{
@@ -147,22 +159,29 @@ pub const Emitter = struct {
                     .string = "true", // FIXME
                 },
             });
+
+            var args = std.ArrayList(Op).init(allocator);
+            errdefer args.deinit();
+            try args.appendSlice(&[_]Op{
+                Op{ .IntegerLiteral = stdout },
+                Op{ .LabelAddress = label_id },
+                Op{ .IntegerLiteral = 4 }, // FIXME
+            });
+            try a.text_section.append(Op{
+                .Syscall = .{
+                    .syscall_number = syscall_write_osx,
+                    .args = args,
+                },
+            });
         }
 
+        var args = std.ArrayList(Op).init(allocator);
+        errdefer args.deinit();
+        try args.append(Op{ .IntegerLiteral = 0 });
         try a.text_section.append(Op{
             .Syscall = .{
                 .syscall_number = syscall_exit_osx,
-                .cardinality = 1,
-                .args = [8]usize{
-                    0,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                },
+                .args = args,
             },
         });
 
