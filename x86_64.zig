@@ -57,17 +57,20 @@ pub const Register = enum {
 pub const Asm = struct {
     text_section: std.ArrayList(Op),
     data_section: std.ArrayList(Op),
+    arena: std.heap.ArenaAllocator,
 
     pub fn init(allocator: *std.mem.Allocator) Asm {
         return Asm{
             .text_section = std.ArrayList(Op).init(allocator),
             .data_section = std.ArrayList(Op).init(allocator),
+            .arena = std.heap.ArenaAllocator.init(allocator),
         };
     }
 
     pub fn deinit(a: *Asm) void {
         a.text_section.deinit();
         a.data_section.deinit();
+        a.arena.deinit();
     }
 
     pub fn dump(a: Asm) void {
@@ -160,7 +163,7 @@ pub const Emitter = struct {
                 },
             });
 
-            var args = std.ArrayList(Op).init(allocator);
+            var args = std.ArrayList(Op).init(&a.arena.allocator);
             errdefer args.deinit();
             try args.appendSlice(&[_]Op{
                 Op{ .IntegerLiteral = stdout },
@@ -175,7 +178,7 @@ pub const Emitter = struct {
             });
         }
 
-        var args = std.ArrayList(Op).init(allocator);
+        var args = std.ArrayList(Op).init(&a.arena.allocator);
         errdefer args.deinit();
         try args.append(Op{ .IntegerLiteral = 0 });
         try a.text_section.append(Op{
