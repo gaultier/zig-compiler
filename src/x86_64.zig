@@ -84,12 +84,8 @@ pub const Asm = struct {
         for (a.text_section) |op| {
             switch (op) {
                 .Syscall => |syscall| {
-                    try out.print("\tmovq ${}, {}\n", .{
-                        syscall.syscall_number, Register.fnArg(@intCast(u16, 0)).?.toString(),
-                    });
-
                     for (syscall.args) |arg, i| {
-                        const register = Register.fnArg(@intCast(u16, i + 1));
+                        const register = Register.fnArg(@intCast(u16, i));
                         switch (arg) {
                             .IntegerLiteral => |integerLiteral| {
                                 try out.print("\tmovq ${}, {}\n", .{
@@ -110,7 +106,7 @@ pub const Asm = struct {
                     try out.print("\tsyscall\n", .{});
 
                     for (syscall.args) |_, i| {
-                        const register = Register.fnArg(@intCast(u16, i + 1));
+                        const register = Register.fnArg(@intCast(u16, i));
                         try out.print("\tmovq $0, {}\n", .{register.?.toString()});
                     }
                     try out.print("\n", .{});
@@ -123,7 +119,6 @@ pub const Asm = struct {
 
 pub const Op = union(enum) {
     Syscall: struct {
-        syscall_number: usize,
         args: []Op,
     },
     IntegerLiteral: usize,
@@ -142,7 +137,7 @@ const syscall_exit_osx: usize = 0x2000001;
 const syscall_write_osx: usize = 0x2000004;
 
 pub const Emitter = struct {
-    pub fn emit(node: *Node, parser: Parser, allocator: *std.mem.Allocator) std.mem.Allocator.Error!Asm {
+    pub fn emit(nodes: []*Node, parser: Parser, allocator: *std.mem.Allocator) std.mem.Allocator.Error!Asm {
         var arena = std.heap.ArenaAllocator.init(allocator);
 
         var text_section = std.ArrayList(Op).init(&arena.allocator);
@@ -152,40 +147,34 @@ pub const Emitter = struct {
 
         var label_id: usize = 0;
 
-        if (node.castTag(.BuiltinPrint)) |builtinprint| {
-            label_id += 1;
-            const label = Op{
-                .StringLabel = .{
-                    .label_id = label_id,
-                    .string = builtinprint.arg.getNodeSource(parser),
-                },
-            };
-            try data_section.append(label);
+        for (nodes) |node| {
+            if (node.castTag(.BuiltinPrint)) |builtinprint| {
+                label_id += 1;
+                const label = Op{
+                    .StringLabel = .{
+                        .label_id = label_id,
+                        .string = builtinprint.arg.getNodeSource(parser),
+                    },
+                };
+                try data_section.append(label);
+
+                var args = std.ArrayList(Op).init(&arena.allocator);
+                defer args.deinit();
+                try args.appendSlice(&[_]Op{
+                    Op{ .IntegerLiteral = syscall_write_osx },
+                    Op{ .IntegerLiteral = stdout },
+                    Op{ .LabelAddress = label.StringLabel.label_id },
+                    Op{ .IntegerLiteral = label.StringLabel.string.len },
+                });
+                try text_section.append(Op{ .Syscall = .{ .args = args.toOwnedSlice() } });
+            }
 
             var args = std.ArrayList(Op).init(&arena.allocator);
             defer args.deinit();
-            try args.appendSlice(&[_]Op{
-                Op{ .IntegerLiteral = stdout },
-                Op{ .LabelAddress = label.StringLabel.label_id },
-                Op{ .IntegerLiteral = label.StringLabel.string.len },
-            });
-            try text_section.append(Op{
-                .Syscall = .{
-                    .syscall_number = syscall_write_osx,
-                    .args = args.toOwnedSlice(),
-                },
-            });
+            try args.append(Op{ .IntegerLiteral = syscall_exit_osx });
+            try args.append(Op{ .IntegerLiteral = 0 });
+            try text_section.append(Op{ .Syscall = .{ .args = args.toOwnedSlice() } });
         }
-
-        var args = std.ArrayList(Op).init(&arena.allocator);
-        defer args.deinit();
-        try args.append(Op{ .IntegerLiteral = 0 });
-        try text_section.append(Op{
-            .Syscall = .{
-                .syscall_number = syscall_exit_osx,
-                .args = args.toOwnedSlice(),
-            },
-        });
 
         return Asm{
             .text_section = text_section.toOwnedSlice(),
@@ -202,18 +191,16 @@ test "emit" {
     const nodes = try parser.parse();
     defer parser.allocator.free(nodes);
 
-    var node = nodes[0];
-
-    var a = try Emitter.emit(node, parser, std.testing.allocator);
+    var a = try Emitter.emit(nodes, parser, std.testing.allocator);
     defer a.deinit();
 
     std.testing.expectEqual(@as(usize, 2), a.text_section.len);
 
     const write_syscall = a.text_section[0].Syscall;
-    std.testing.expectEqual(syscall_write_osx, write_syscall.syscall_number);
+    std.testing.expectEqual(syscall_write_osx, write_syscall.args[0].IntegerLiteral);
 
     const exit_syscall = a.text_section[1].Syscall;
-    std.testing.expectEqual(syscall_exit_osx, exit_syscall.syscall_number);
+    std.testing.expectEqual(syscall_exit_osx, exit_syscall.args[0].IntegerLiteral);
 
     try a.dump();
 }

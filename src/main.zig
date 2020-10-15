@@ -26,9 +26,7 @@ pub fn main() !void {
     const nodes = try parser.parse();
     defer parser.allocator.free(nodes);
 
-    var node = nodes[0];
-
-    var a = try Emitter.emit(node, parser, std.testing.allocator);
+    var a = try Emitter.emit(nodes, parser, std.testing.allocator);
     defer a.deinit();
 
     try a.dump();
