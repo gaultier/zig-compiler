@@ -86,7 +86,7 @@ pub const Asm = struct {
                         syscall.syscall_number, Register.fnArg(@intCast(u16, 0)).?.toString(),
                     });
 
-                    for (syscall.args.items) |arg, i| {
+                    for (syscall.args) |arg, i| {
                         const register = Register.fnArg(@intCast(u16, i + 1));
                         switch (arg) {
                             .IntegerLiteral => |integerLiteral| {
@@ -107,7 +107,7 @@ pub const Asm = struct {
                     }
                     std.debug.warn("\tsyscall\n", .{});
 
-                    for (syscall.args.items) |_, i| {
+                    for (syscall.args) |_, i| {
                         const register = Register.fnArg(@intCast(u16, i + 1));
                         std.debug.warn("\tmovq $0, {}\n", .{register.?.toString()});
                     }
@@ -122,7 +122,7 @@ pub const Asm = struct {
 pub const Op = union(enum) {
     Syscall: struct {
         syscall_number: usize,
-        args: std.ArrayList(Op),
+        args: []Op,
     },
     IntegerLiteral: usize,
     StringLabel: struct {
@@ -161,7 +161,7 @@ pub const Emitter = struct {
             try data_section.append(label);
 
             var args = std.ArrayList(Op).init(&arena.allocator);
-            errdefer args.deinit();
+            defer args.deinit();
             try args.appendSlice(&[_]Op{
                 Op{ .IntegerLiteral = stdout },
                 Op{ .LabelAddress = label.StringLabel.label_id },
@@ -170,18 +170,18 @@ pub const Emitter = struct {
             try text_section.append(Op{
                 .Syscall = .{
                     .syscall_number = syscall_write_osx,
-                    .args = args,
+                    .args = args.toOwnedSlice(),
                 },
             });
         }
 
         var args = std.ArrayList(Op).init(&arena.allocator);
-        errdefer args.deinit();
+        defer args.deinit();
         try args.append(Op{ .IntegerLiteral = 0 });
         try text_section.append(Op{
             .Syscall = .{
                 .syscall_number = syscall_exit_osx,
-                .args = args,
+                .args = args.toOwnedSlice(),
             },
         });
 
@@ -212,4 +212,6 @@ test "emit" {
 
     const exit_syscall = a.text_section[1].Syscall;
     std.testing.expectEqual(syscall_exit_osx, exit_syscall.syscall_number);
+
+    a.dump();
 }
