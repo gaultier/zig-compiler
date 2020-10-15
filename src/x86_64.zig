@@ -57,27 +57,17 @@ pub const Register = enum {
 };
 
 pub const Asm = struct {
-    text_section: std.ArrayList(Op),
-    data_section: std.ArrayList(Op),
+    text_section: []Op,
+    data_section: []Op,
     arena: std.heap.ArenaAllocator,
 
-    pub fn init(allocator: *std.mem.Allocator) Asm {
-        return Asm{
-            .text_section = std.ArrayList(Op).init(allocator),
-            .data_section = std.ArrayList(Op).init(allocator),
-            .arena = std.heap.ArenaAllocator.init(allocator),
-        };
-    }
-
     pub fn deinit(a: *Asm) void {
-        a.text_section.deinit();
-        a.data_section.deinit();
         a.arena.deinit();
     }
 
     pub fn dump(a: Asm) void {
         std.debug.warn("\n.data\n", .{});
-        for (a.data_section.items) |op| {
+        for (a.data_section) |op| {
             switch (op) {
                 .StringLabel => |stringLabel| {
                     std.debug.warn(".L{}: .asciz \"{}\"\n", .{ stringLabel.label_id, stringLabel.string });
@@ -89,7 +79,7 @@ pub const Asm = struct {
         std.debug.warn("\n.text\n", .{});
         // FIXME: for now, hardcoded to one main section
         std.debug.warn(".globl _main\n_main:\n", .{});
-        for (a.text_section.items) |op| {
+        for (a.text_section) |op| {
             switch (op) {
                 .Syscall => |syscall| {
                     std.debug.warn("\tmovq ${}, {}\n", .{
@@ -151,8 +141,12 @@ const syscall_write_osx: usize = 0x2000004;
 
 pub const Emitter = struct {
     pub fn emit(node: *Node, parser: Parser, allocator: *std.mem.Allocator) std.mem.Allocator.Error!Asm {
-        var a = Asm.init(allocator);
-        errdefer a.deinit();
+        var arena = std.heap.ArenaAllocator.init(allocator);
+
+        var text_section = std.ArrayList(Op).init(&arena.allocator);
+        defer text_section.deinit();
+        var data_section = std.ArrayList(Op).init(&arena.allocator);
+        defer data_section.deinit();
 
         var label_id: usize = 0;
 
@@ -164,16 +158,16 @@ pub const Emitter = struct {
                     .string = builtinprint.arg.getNodeSource(parser),
                 },
             };
-            try a.data_section.append(label);
+            try data_section.append(label);
 
-            var args = std.ArrayList(Op).init(&a.arena.allocator);
+            var args = std.ArrayList(Op).init(&arena.allocator);
             errdefer args.deinit();
             try args.appendSlice(&[_]Op{
                 Op{ .IntegerLiteral = stdout },
                 Op{ .LabelAddress = label.StringLabel.label_id },
                 Op{ .IntegerLiteral = label.StringLabel.string.len },
             });
-            try a.text_section.append(Op{
+            try text_section.append(Op{
                 .Syscall = .{
                     .syscall_number = syscall_write_osx,
                     .args = args,
@@ -181,17 +175,21 @@ pub const Emitter = struct {
             });
         }
 
-        var args = std.ArrayList(Op).init(&a.arena.allocator);
+        var args = std.ArrayList(Op).init(&arena.allocator);
         errdefer args.deinit();
         try args.append(Op{ .IntegerLiteral = 0 });
-        try a.text_section.append(Op{
+        try text_section.append(Op{
             .Syscall = .{
                 .syscall_number = syscall_exit_osx,
                 .args = args,
             },
         });
 
-        return a;
+        return Asm{
+            .text_section = text_section.toOwnedSlice(),
+            .data_section = data_section.toOwnedSlice(),
+            .arena = arena,
+        };
     }
 };
 
@@ -207,11 +205,11 @@ test "emit" {
     var a = try Emitter.emit(node, parser, std.testing.allocator);
     defer a.deinit();
 
-    std.testing.expectEqual(@as(usize, 2), a.text_section.items.len);
+    std.testing.expectEqual(@as(usize, 2), a.text_section.len);
 
-    const write_syscall = a.text_section.items[0].Syscall;
+    const write_syscall = a.text_section[0].Syscall;
     std.testing.expectEqual(syscall_write_osx, write_syscall.syscall_number);
 
-    const exit_syscall = a.text_section.items[1].Syscall;
+    const exit_syscall = a.text_section[1].Syscall;
     std.testing.expectEqual(syscall_exit_osx, exit_syscall.syscall_number);
 }
