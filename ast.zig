@@ -1,4 +1,6 @@
 const std = @import("std");
+const parse = @import("parse.zig");
+const Parser = parse.Parser;
 
 pub const TokenIndex = usize;
 
@@ -10,6 +12,32 @@ pub const Node = struct {
             return @fieldParentPtr(tag.Type(), "base", base);
         }
         return null;
+    }
+
+    pub fn getNodeSource(node: *const Node, parser: Parser) []const u8 {
+        const first_token = parser.token_locs[node.firstToken()];
+        const last_token = parser.token_locs[node.lastToken()];
+        return parser.source[first_token.start..last_token.end];
+    }
+
+    pub fn firstToken(base: *const Node) TokenIndex {
+        inline for (@typeInfo(Tag).Enum.fields) |field| {
+            const tag = @intToEnum(Tag, field.value);
+            if (base.tag == tag) {
+                return @fieldParentPtr(tag.Type(), "base", base).firstToken();
+            }
+        }
+        unreachable;
+    }
+
+    pub fn lastToken(base: *const Node) TokenIndex {
+        inline for (@typeInfo(Tag).Enum.fields) |field| {
+            const tag = @intToEnum(Tag, field.value);
+            if (base.tag == tag) {
+                return @fieldParentPtr(tag.Type(), "base", base).lastToken();
+            }
+        }
+        unreachable;
     }
 
     pub const Tag = enum {

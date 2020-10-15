@@ -1,5 +1,7 @@
-const ast = @import("ast.zig");
 const std = @import("std");
+const parse = @import("parse.zig");
+const Parser = parse.Parser;
+const ast = @import("ast.zig");
 const Node = ast.Node;
 
 pub const Register = enum {
@@ -148,7 +150,7 @@ const syscall_exit_osx: usize = 0x2000001;
 const syscall_write_osx: usize = 0x2000004;
 
 pub const Emitter = struct {
-    pub fn emit(node: *Node, allocator: *std.mem.Allocator) std.mem.Allocator.Error!Asm {
+    pub fn emit(node: *Node, parser: Parser, allocator: *std.mem.Allocator) std.mem.Allocator.Error!Asm {
         var a = Asm.init(allocator);
         errdefer a.deinit();
 
@@ -159,7 +161,7 @@ pub const Emitter = struct {
             const label = Op{
                 .StringLabel = .{
                     .label_id = label_id,
-                    .string = "false", // FIXME
+                    .string = builtinprint.arg.getNodeSource(parser),
                 },
             };
             try a.data_section.append(label);
@@ -194,9 +196,6 @@ pub const Emitter = struct {
 };
 
 test "emit" {
-    const parse = @import("parse.zig");
-    const Parser = parse.Parser;
-
     var parser = try Parser.init(" print(true)\t", std.testing.allocator);
     defer parser.deinit();
 
@@ -205,7 +204,7 @@ test "emit" {
 
     var node = nodes[0];
 
-    var a = try Emitter.emit(node, std.testing.allocator);
+    var a = try Emitter.emit(node, parser, std.testing.allocator);
     defer a.deinit();
 
     std.testing.expectEqual(@as(usize, 2), a.text_section.items.len); // FIXME
