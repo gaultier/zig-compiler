@@ -156,19 +156,20 @@ pub const Emitter = struct {
 
         if (node.castTag(.BuiltinPrint)) |builtinprint| {
             label_id += 1;
-            try a.data_section.append(Op{
+            const label = Op{
                 .StringLabel = .{
                     .label_id = label_id,
-                    .string = "true", // FIXME
+                    .string = "false", // FIXME
                 },
-            });
+            };
+            try a.data_section.append(label);
 
             var args = std.ArrayList(Op).init(&a.arena.allocator);
             errdefer args.deinit();
             try args.appendSlice(&[_]Op{
                 Op{ .IntegerLiteral = stdout },
-                Op{ .LabelAddress = label_id },
-                Op{ .IntegerLiteral = 4 }, // FIXME
+                Op{ .LabelAddress = label.StringLabel.label_id },
+                Op{ .IntegerLiteral = label.StringLabel.string.len },
             });
             try a.text_section.append(Op{
                 .Syscall = .{
