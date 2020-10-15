@@ -207,7 +207,7 @@ test "emit" {
     var a = try Emitter.emit(node, parser, std.testing.allocator);
     defer a.deinit();
 
-    std.testing.expectEqual(@as(usize, 2), a.text_section.items.len); // FIXME
+    std.testing.expectEqual(@as(usize, 2), a.text_section.items.len);
 
     a.dump();
     // std.testing.expectEqual(Op.Syscall{ .syscall_number = syscall_write_osx, .args = .{ stdout, 65, 1 } }, ops[0]); // FIXME
