@@ -209,6 +209,9 @@ test "emit" {
 
     std.testing.expectEqual(@as(usize, 2), a.text_section.items.len);
 
-    a.dump();
-    // std.testing.expectEqual(Op.Syscall{ .syscall_number = syscall_write_osx, .args = .{ stdout, 65, 1 } }, ops[0]); // FIXME
+    const write_syscall = a.text_section.items[0].Syscall;
+    std.testing.expectEqual(syscall_write_osx, write_syscall.syscall_number);
+
+    const exit_syscall = a.text_section.items[1].Syscall;
+    std.testing.expectEqual(syscall_exit_osx, exit_syscall.syscall_number);
 }
