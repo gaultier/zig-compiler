@@ -168,13 +168,13 @@ pub const Emitter = struct {
                 });
                 try text_section.append(Op{ .Syscall = .{ .args = args.toOwnedSlice() } });
             }
-
-            var args = std.ArrayList(Op).init(&arena.allocator);
-            defer args.deinit();
-            try args.append(Op{ .IntegerLiteral = syscall_exit_osx });
-            try args.append(Op{ .IntegerLiteral = 0 });
-            try text_section.append(Op{ .Syscall = .{ .args = args.toOwnedSlice() } });
         }
+
+        var args = std.ArrayList(Op).init(&arena.allocator);
+        defer args.deinit();
+        try args.append(Op{ .IntegerLiteral = syscall_exit_osx });
+        try args.append(Op{ .IntegerLiteral = 0 });
+        try text_section.append(Op{ .Syscall = .{ .args = args.toOwnedSlice() } });
 
         return Asm{
             .text_section = text_section.toOwnedSlice(),
