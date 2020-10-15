@@ -65,24 +65,26 @@ pub const Asm = struct {
         a.arena.deinit();
     }
 
-    pub fn dump(a: Asm) void {
-        std.debug.warn("\n.data\n", .{});
+    pub fn dump(a: Asm) std.os.WriteError!void {
+        var out = std.io.getStdOut().outStream();
+
+        try out.print("\n.data\n", .{});
         for (a.data_section) |op| {
             switch (op) {
                 .StringLabel => |stringLabel| {
-                    std.debug.warn(".L{}: .asciz \"{}\"\n", .{ stringLabel.label_id, stringLabel.string });
+                    try out.print(".L{}: .asciz \"{}\"\n", .{ stringLabel.label_id, stringLabel.string });
                 },
                 else => unreachable,
             }
         }
 
-        std.debug.warn("\n.text\n", .{});
+        try out.print("\n.text\n", .{});
         // FIXME: for now, hardcoded to one main section
-        std.debug.warn(".globl _main\n_main:\n", .{});
+        try out.print(".globl _main\n_main:\n", .{});
         for (a.text_section) |op| {
             switch (op) {
                 .Syscall => |syscall| {
-                    std.debug.warn("\tmovq ${}, {}\n", .{
+                    try out.print("\tmovq ${}, {}\n", .{
                         syscall.syscall_number, Register.fnArg(@intCast(u16, 0)).?.toString(),
                     });
 
@@ -90,13 +92,13 @@ pub const Asm = struct {
                         const register = Register.fnArg(@intCast(u16, i + 1));
                         switch (arg) {
                             .IntegerLiteral => |integerLiteral| {
-                                std.debug.warn("\tmovq ${}, {}\n", .{
+                                try out.print("\tmovq ${}, {}\n", .{
                                     integerLiteral,
                                     register.?.toString(),
                                 });
                             },
                             .LabelAddress => |label_id| {
-                                std.debug.warn("\tleaq .L{}({}), {}\n", .{
+                                try out.print("\tleaq .L{}({}), {}\n", .{
                                     label_id,
                                     Register.rip.toString(),
                                     register.?.toString(),
@@ -105,13 +107,13 @@ pub const Asm = struct {
                             else => unreachable,
                         }
                     }
-                    std.debug.warn("\tsyscall\n", .{});
+                    try out.print("\tsyscall\n", .{});
 
                     for (syscall.args) |_, i| {
                         const register = Register.fnArg(@intCast(u16, i + 1));
-                        std.debug.warn("\tmovq $0, {}\n", .{register.?.toString()});
+                        try out.print("\tmovq $0, {}\n", .{register.?.toString()});
                     }
-                    std.debug.warn("\n", .{});
+                    try out.print("\n", .{});
                 },
                 else => unreachable,
             }
@@ -213,5 +215,5 @@ test "emit" {
     const exit_syscall = a.text_section[1].Syscall;
     std.testing.expectEqual(syscall_exit_osx, exit_syscall.syscall_number);
 
-    a.dump();
+    try a.dump();
 }

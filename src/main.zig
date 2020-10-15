@@ -31,5 +31,5 @@ pub fn main() !void {
     var a = try Emitter.emit(node, parser, std.testing.allocator);
     defer a.deinit();
 
-    a.dump();
+    try a.dump();
 }
