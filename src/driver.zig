@@ -17,5 +17,6 @@ pub fn run(file_name: []const u8, allocator: *std.mem.Allocator) !void {
     var a = try Emitter.emit(nodes, parser, std.testing.allocator);
     defer a.deinit();
 
-    try a.dump();
+    var out = std.io.getStdOut().writer();
+    try a.dump(out);
 }

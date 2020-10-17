@@ -70,9 +70,7 @@ pub const Asm = struct {
         a.arena.deinit();
     }
 
-    pub fn dump(a: Asm) std.os.WriteError!void {
-        var out = std.io.getStdOut().outStream();
-
+    pub fn dump(a: Asm, out: *std.io.Writer) std.os.WriteError!void {
         try out.print("\n.data\n", .{});
         for (a.data_section) |op| {
             switch (op) {
