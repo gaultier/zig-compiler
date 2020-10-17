@@ -51,6 +51,11 @@ pub const Register = enum {
             1 => .rdi,
             2 => .rsi,
             3 => .rdx,
+            4 => .rcx,
+            5 => .r8,
+            6 => .r9,
+            7 => .r10,
+            8 => .r11,
             else => null, // TODO: Implement more
         };
     }
