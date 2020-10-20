@@ -13,5 +13,7 @@ pub fn main() !void {
         return;
     };
 
-    try run(file_name, allocator);
+    run(file_name, allocator) catch |_| {
+        std.process.exit(1);
+    };
 }
