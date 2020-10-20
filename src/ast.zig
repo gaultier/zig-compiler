@@ -42,6 +42,20 @@ pub const Error = union(enum) {
             }
         }
     };
+
+    pub fn render(self: *const Error, tokens: []const Token.Id, stream: anytype) !void {
+        switch (self.*) {
+            .InvalidToken => |*x| return x.render(tokens, stream),
+            .ExpectedToken => |*x| return x.render(tokens, stream),
+        }
+    }
+
+    pub fn loc(self: *const Error) TokenIndex {
+        switch (self.*) {
+            .InvalidToken => |x| return x.token,
+            .ExpectedToken => |x| return x.token,
+        }
+    }
 };
 
 pub const Node = struct {
@@ -152,4 +166,11 @@ pub const Node = struct {
             child.dump(indent + 2);
         }
     }
+};
+
+pub const Location = struct {
+    line: usize,
+    column: usize,
+    line_start: usize,
+    line_end: usize,
 };
