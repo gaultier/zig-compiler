@@ -179,4 +179,8 @@ test "parseBuiltinPrint error" {
     defer parser.deinit();
 
     std.testing.expectError(error.ParseError, parser.parse());
+    std.testing.expectEqual(@as(usize, 1), parser.errors.items.len);
+
+    const err = parser.errors.items[0];
+    std.testing.expectEqual(AstError{ .ExpectedToken = .{ .token = 3, .expected_id = Token.Id.RParen } }, err);
 }
