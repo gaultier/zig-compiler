@@ -28,7 +28,6 @@ pub fn run(file_name: []const u8, allocator: *std.mem.Allocator) !void {
     defer a.deinit();
 
     const base_file_name = getBaseSourceFileName(file_name);
-
     var asm_file_name = try allocator.alloc(u8, base_file_name.len + 4);
     defer allocator.free(asm_file_name);
     std.mem.copy(u8, asm_file_name[0..], base_file_name[0..]);
@@ -38,4 +37,27 @@ pub fn run(file_name: []const u8, allocator: *std.mem.Allocator) !void {
     defer asm_file.close();
 
     try a.dump(asm_file.writer());
+
+    // as
+    var object_file_name = try allocator.alloc(u8, base_file_name.len + 2);
+    defer allocator.free(object_file_name);
+    std.mem.copy(u8, object_file_name[0..], base_file_name[0..]);
+    std.mem.copy(u8, object_file_name[base_file_name.len..], ".o");
+
+    const exec_result = try std.ChildProcess.exec(.{
+        .allocator = allocator,
+        .argv = &[_][]const u8{ "as", asm_file_name, "-o", object_file_name },
+        .cwd_dir = std.fs.cwd(),
+    });
+
+    switch (exec_result.term) {
+        .Exited => |code| if (code != 0) {
+            std.debug.warn("`as` invocation failed: command={} {} {} {} exit_code={} stdout={} stderr={}\n", .{ "as", asm_file_name, "-o", object_file_name, code, exec_result.stdout, exec_result.stderr });
+            return error.AssemblerFailed;
+        },
+        else => {
+            std.debug.warn("`as` invocation failed: command=`{} {} {} {}` exit_result={} stdout={} stderr={}\n", .{ "as", asm_file_name, "-o", object_file_name, exec_result.term, exec_result.stdout, exec_result.stderr });
+            return error.AssemblerError;
+        },
+    }
 }
