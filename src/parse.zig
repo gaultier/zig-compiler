@@ -82,6 +82,20 @@ pub const Parser = struct {
                 try errOut.print("{}:{}: error: ", .{ loc.line + 1, loc.column + 1 });
                 try parse_error.render(p.token_ids, errOut);
                 try errOut.print("\n{}\n", .{p.source[loc.line_start..loc.line_end]});
+                {
+                    var i: usize = 0;
+                    while (i < loc.column) : (i += 1) {
+                        try errOut.writeAll(" ");
+                    }
+                }
+                {
+                    const caret_count = token.end - token.start;
+                    var i: usize = 0;
+                    while (i < caret_count) : (i += 1) {
+                        try errOut.writeAll("^");
+                    }
+                }
+                try errOut.writeAll("\n");
             }
             try errOut.writeAll("\n");
             return err;
@@ -225,7 +239,7 @@ test "parseBuiltinPrint" {
 }
 
 test "parseBuiltinPrint error" {
-    var parser = try Parser.init(" print(true\t", std.testing.allocator);
+    var parser = try Parser.init(" print(true ( \t", std.testing.allocator);
     defer parser.deinit();
 
     var buffer = std.ArrayList(u8).init(std.testing.allocator);
