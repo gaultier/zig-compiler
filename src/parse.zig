@@ -4,6 +4,7 @@ const ast = @import("ast.zig");
 const Token = lex.Token;
 const TokenIndex = ast.TokenIndex;
 const Node = ast.Node;
+const AstError = ast.Error;
 
 pub const Error = error{ParseError} || std.mem.Allocator.Error;
 
@@ -14,7 +15,7 @@ pub const Parser = struct {
     tok_i: usize,
     allocator: *std.mem.Allocator,
     arena: std.heap.ArenaAllocator,
-    // errors: std.ArrayListUnmanaged(AstError),
+    errors: std.ArrayList(AstError),
 
     pub fn init(source: []const u8, allocator: *std.mem.Allocator) std.mem.Allocator.Error!Parser {
         var token_ids = std.ArrayList(Token.Id).init(allocator);
@@ -40,6 +41,7 @@ pub const Parser = struct {
             .source = source,
             .allocator = allocator,
             .arena = std.heap.ArenaAllocator.init(allocator),
+            .errors = std.ArrayList(AstError).init(allocator),
         };
     }
 
@@ -72,9 +74,9 @@ pub const Parser = struct {
     fn expectTokenRecoverable(p: *Parser, id: Token.Id) !?TokenIndex {
         const token = p.nextToken();
         if (p.token_ids[token] != id) {
-            // try p.errors.append(p.gpa, .{
-            //     .ExpectedToken = .{ .token = token, .expected_id = id },
-            // });
+            try p.errors.append(.{
+                .ExpectedToken = .{ .token = token, .expected_id = id },
+            });
             // go back so that we can recover properly
             // p.putBackToken(token);
             return null;
