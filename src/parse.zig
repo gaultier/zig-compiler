@@ -13,12 +13,13 @@ pub const Parser = struct {
     token_ids: []const Token.Id,
     token_locs: []const Token.Loc,
     source: []const u8,
+    source_file_name: []const u8,
     tok_i: usize,
     allocator: *std.mem.Allocator,
     arena: std.heap.ArenaAllocator,
     errors: std.ArrayList(AstError),
 
-    pub fn init(source: []const u8, allocator: *std.mem.Allocator) std.mem.Allocator.Error!Parser {
+    pub fn init(source_file_name: []const u8, source: []const u8, allocator: *std.mem.Allocator) std.mem.Allocator.Error!Parser {
         var token_ids = std.ArrayList(Token.Id).init(allocator);
         defer token_ids.deinit();
         try token_ids.ensureCapacity(source.len / 8); // Estimate
@@ -43,6 +44,7 @@ pub const Parser = struct {
             .allocator = allocator,
             .arena = std.heap.ArenaAllocator.init(allocator),
             .errors = std.ArrayList(AstError).init(allocator),
+            .source_file_name = source_file_name,
         };
     }
 
@@ -79,7 +81,7 @@ pub const Parser = struct {
                 const token = p.token_locs[parse_error.loc()];
                 const loc = p.tokenLocation(0, parse_error.loc());
 
-                try errOut.print("{}:{}: error: ", .{ loc.line + 1, loc.column + 1 });
+                try errOut.print("{}:{}:{}: error: ", .{ p.source_file_name, loc.line + 1, loc.column + 1 });
                 try parse_error.render(p.token_ids, errOut);
                 try errOut.print("\n{}\n", .{p.source[loc.line_start..loc.line_end]});
                 {
@@ -209,7 +211,7 @@ pub const Parser = struct {
 };
 
 test "eatToken" {
-    var parser = try Parser.init(" true false  ", std.testing.allocator);
+    var parser = try Parser.init("<memory>", " true false  ", std.testing.allocator);
     defer parser.deinit();
 
     std.testing.expectEqual(@as(?usize, 0), parser.eatToken(Token.Id.True));
@@ -218,7 +220,7 @@ test "eatToken" {
 }
 
 test "parseBuiltinPrint" {
-    var parser = try Parser.init(" print(true)\t", std.testing.allocator);
+    var parser = try Parser.init("<memory>", " print(true)\t", std.testing.allocator);
     defer parser.deinit();
 
     const nodes = try parser.parse();
@@ -239,7 +241,7 @@ test "parseBuiltinPrint" {
 }
 
 test "parseBuiltinPrint error" {
-    var parser = try Parser.init(" print(true ( \t", std.testing.allocator);
+    var parser = try Parser.init("<memory>", " print(true ( \t", std.testing.allocator);
     defer parser.deinit();
 
     var buffer = std.ArrayList(u8).init(std.testing.allocator);
