@@ -69,21 +69,22 @@ pub const Parser = struct {
         }
     }
 
-    fn renderError(self: *Tree, parse_error: *const Error, stream: anytype) !void {
+    fn renderError(self: *Parser, parse_error: *const Error, stream: anytype) !void {
         return parse_error.render(self.token_ids, stream);
     }
 
     pub fn testParse(p: *Parser, errOut: anytype) ![]*Node {
-        return p.parse() catch |_| {
+        return p.parse() catch |err| {
             for (p.errors.items) |*parse_error| {
                 const token = p.token_locs[parse_error.loc()];
                 const loc = p.tokenLocation(0, parse_error.loc());
 
                 try errOut.print("{}:{}: error: ", .{ loc.line + 1, loc.column + 1 });
                 try parse_error.render(p.token_ids, errOut);
-                try errOut.print("\n{}\n", .{source[loc.line_start..loc.line_end]});
+                try errOut.print("\n{}\n", .{p.source[loc.line_start..loc.line_end]});
             }
             try errOut.writeAll("\n");
+            return err;
         };
     }
 
@@ -92,15 +93,13 @@ pub const Parser = struct {
     }
 
     /// Return the Location of the token relative to the offset specified by `start_index`.
-    pub fn tokenLocationLoc(self: *Tree, start_index: usize, token: Token.Loc) Location {
+    pub fn tokenLocationLoc(self: *Parser, start_index: usize, token: Token.Loc) Location {
         var loc = Location{
             .line = 0,
             .column = 0,
             .line_start = start_index,
             .line_end = self.source.len,
         };
-        if (self.generated)
-            return loc;
         const token_start = token.start;
         for (self.source[start_index..]) |c, i| {
             if (i + start_index == token_start) {
@@ -238,7 +237,7 @@ test "parseBuiltinPrint error" {
     std.testing.expectError(error.ParseError, res);
     std.testing.expectEqual(@as(usize, 1), parser.errors.items.len);
 
-    std.debug.warn("{}", .{buffer});
+    std.debug.warn("{}", .{buffer.items});
 
     // const err = parser.errors.items[0];
     // std.testing.expectEqual(AstError{ .ExpectedToken = .{ .token = 3, .expected_id = Token.Id.RParen } }, err);

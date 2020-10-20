@@ -5,7 +5,29 @@ pub const Token = struct {
     loc: Loc,
 
     pub const Id = enum {
-        BuiltinPrint, LParen, RParen, True, False, Identifier, LineComment, Eof, Invalid
+        BuiltinPrint,
+        LParen,
+        RParen,
+        True,
+        False,
+        Identifier,
+        LineComment,
+        Eof,
+        Invalid,
+
+        pub fn symbol(id: Id) []const u8 {
+            return switch (id) {
+                .BuiltinPrint => "print",
+                .LParen => "(",
+                .RParen => ")",
+                .True => "true",
+                .False => "false",
+                .Identifier => "Identifier",
+                .LineComment => "LineComment",
+                .Eof => "EOF",
+                .Invalid => "Invalid",
+            };
+        }
     };
 
     pub const Loc = struct {
