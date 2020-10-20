@@ -44,19 +44,16 @@ pub fn run(file_name: []const u8, allocator: *std.mem.Allocator) !void {
     std.mem.copy(u8, object_file_name[0..], base_file_name[0..]);
     std.mem.copy(u8, object_file_name[base_file_name.len..], ".o");
 
-    const exec_result = try std.ChildProcess.exec(.{
-        .allocator = allocator,
-        .argv = &[_][]const u8{ "as", asm_file_name, "-o", object_file_name },
-        .cwd_dir = std.fs.cwd(),
-    });
+    const argv = [_][]const u8{ "/usr/bin/as", asm_file_name, "-o", object_file_name };
+    const exec_result = try std.ChildProcess.exec(.{ .argv = &argv, .allocator = allocator });
 
     switch (exec_result.term) {
         .Exited => |code| if (code != 0) {
-            std.debug.warn("`as` invocation failed: command={} {} {} {} exit_code={} stdout={} stderr={}\n", .{ "as", asm_file_name, "-o", object_file_name, code, exec_result.stdout, exec_result.stderr });
+            std.debug.warn("`as` invocation failed: command={} {} {} {} exit_code={} stdout={} stderr={}\n", .{ argv[0], argv[1], argv[2], argv[3], code, exec_result.stdout, exec_result.stderr });
             return error.AssemblerFailed;
         },
         else => {
-            std.debug.warn("`as` invocation failed: command=`{} {} {} {}` exit_result={} stdout={} stderr={}\n", .{ "as", asm_file_name, "-o", object_file_name, exec_result.term, exec_result.stdout, exec_result.stderr });
+            std.debug.warn("`as` invocation failed: command=`{} {} {} {}` exit_result={} stdout={} stderr={}\n", .{ argv[0], argv[1], argv[2], argv[3], exec_result.term, exec_result.stdout, exec_result.stderr });
             return error.AssemblerError;
         },
     }
