@@ -188,7 +188,7 @@ pub const Emitter = struct {
 };
 
 test "emit" {
-    var parser = try Parser.init(" print(true)\t", std.testing.allocator);
+    var parser = try Parser.init("<memory>", " print(true)\t", std.testing.allocator);
     defer parser.deinit();
 
     const nodes = try parser.parse();

@@ -12,13 +12,13 @@ fn getBaseSourceFileName(file_name: []const u8) []const u8 {
     return file_name[0 .. file_name.len - 4];
 }
 
-pub fn run(file_name: []const u8, allocator: *std.mem.Allocator) !void {
-    if (!isSourceFileNameValid(file_name)) return error.InvalidSourceFile;
+pub fn run(source_file_name: []const u8, allocator: *std.mem.Allocator) !void {
+    if (!isSourceFileNameValid(source_file_name)) return error.InvalidSourceFile;
 
-    const source = try std.fs.cwd().readFileAlloc(allocator, file_name, 1_000_000);
+    const source = try std.fs.cwd().readFileAlloc(allocator, source_file_name, 1_000_000);
     defer allocator.free(source);
 
-    var parser = try Parser.init(file_name, source, std.testing.allocator);
+    var parser = try Parser.init(source_file_name, source, std.testing.allocator);
     defer parser.deinit();
 
     const stderr = std.io.getStdErr().outStream();
@@ -28,7 +28,7 @@ pub fn run(file_name: []const u8, allocator: *std.mem.Allocator) !void {
     var a = try Emitter.emit(nodes, parser, std.testing.allocator);
     defer a.deinit();
 
-    const base_file_name = getBaseSourceFileName(file_name);
+    const base_file_name = getBaseSourceFileName(source_file_name);
     var asm_file_name = try std.fmt.allocPrintZ(allocator, "." ++ std.fs.path.sep_str ++ "{}.asm", .{base_file_name});
     defer allocator.free(asm_file_name);
 
