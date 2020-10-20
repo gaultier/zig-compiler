@@ -70,7 +70,7 @@ pub const Asm = struct {
         a.arena.deinit();
     }
 
-    pub fn dump(a: Asm, out: *std.io.Writer) std.os.WriteError!void {
+    pub fn dump(a: Asm, out: anytype) std.os.WriteError!void {
         try out.print("\n.data\n", .{});
         for (a.data_section) |op| {
             switch (op) {
@@ -204,6 +204,4 @@ test "emit" {
 
     const exit_syscall = a.text_section[1].Syscall;
     std.testing.expectEqual(syscall_exit_osx, exit_syscall.args[0].IntegerLiteral);
-
-    try a.dump();
 }
