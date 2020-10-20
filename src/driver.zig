@@ -36,5 +36,6 @@ pub fn run(file_name: []const u8, allocator: *std.mem.Allocator) !void {
 
     var asm_file = try std.fs.cwd().createFile(asm_file_name, .{});
     defer asm_file.close();
+
     try a.dump(asm_file.writer());
 }
