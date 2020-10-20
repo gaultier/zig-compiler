@@ -48,6 +48,7 @@ pub const Parser = struct {
     pub fn deinit(p: *Parser) void {
         p.allocator.free(p.token_ids);
         p.allocator.free(p.token_locs);
+        p.errors.deinit();
         p.arena.deinit();
     }
 
@@ -171,4 +172,11 @@ test "parseBuiltinPrint" {
     const last_loc = parser.token_locs[builtinPrint.lastToken()];
     std.testing.expectEqualSlices(u8, "true", parser.source[arg_loc.start..arg_loc.end]);
     std.testing.expectEqualSlices(u8, "print(true)", parser.source[first_loc.start..last_loc.end]);
+}
+
+test "parseBuiltinPrint error" {
+    var parser = try Parser.init(" print(true\t", std.testing.allocator);
+    defer parser.deinit();
+
+    std.testing.expectError(error.ParseError, parser.parse());
 }
