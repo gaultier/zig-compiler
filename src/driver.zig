@@ -61,7 +61,7 @@ pub fn run(file_name: []const u8, allocator: *std.mem.Allocator) !void {
     }
 
     // ld
-    var exe_file_name = try std.mem.dupe(allocator, u8, base_file_name);
+    var exe_file_name = try allocator.dupe(u8, base_file_name);
     defer allocator.free(exe_file_name);
 
     {
