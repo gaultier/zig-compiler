@@ -164,6 +164,7 @@ pub const Parser = struct {
     fn parsePrimaryType(p: *Parser) std.mem.Allocator.Error!?*Node {
         if (p.eatToken(.True)) |token| return p.createLiteral(.BoolLiteral, token);
         if (p.eatToken(.False)) |token| return p.createLiteral(.BoolLiteral, token);
+        if (p.eatToken(.StringLiteral)) |token| return p.createLiteral(.StringLiteral, token);
         return null;
     }
 
@@ -262,8 +263,6 @@ test "parseBuiltinPrint error" {
     const res = parser.testParse(outStream, false);
     std.testing.expectError(error.ParseError, res);
     std.testing.expectEqual(@as(usize, 1), parser.errors.items.len);
-
-    std.debug.warn("{}", .{buffer.items});
 
     // const err = parser.errors.items[0];
     // std.testing.expectEqual(AstError{ .ExpectedToken = .{ .token = 3, .expected_id = Token.Id.RParen } }, err);

@@ -97,10 +97,11 @@ pub const Node = struct {
     pub const Tag = enum {
         BoolLiteral,
         BuiltinPrint,
+        StringLiteral,
 
         pub fn Type(tag: Tag) type {
             return switch (tag) {
-                .BoolLiteral => OneToken,
+                .BoolLiteral, .StringLiteral => OneToken,
                 .BuiltinPrint => BuiltinPrint,
             };
         }
