@@ -75,7 +75,10 @@ pub const Parser = struct {
         return parse_error.render(self.token_ids, stream);
     }
 
-    pub fn testParse(p: *Parser, errOut: anytype) ![]*Node {
+    pub fn testParse(p: *Parser, errOut: anytype, colored: bool) ![]*Node {
+        const red = "\x1b[31m";
+        const reset = "\x1b[0m";
+
         return p.parse() catch |err| {
             for (p.errors.items) |*parse_error| {
                 const token = p.token_locs[parse_error.loc()];
@@ -91,10 +94,17 @@ pub const Parser = struct {
                     }
                 }
                 {
+                    if (colored) {
+                        try errOut.writeAll(red);
+                    }
                     const caret_count = token.end - token.start;
                     var i: usize = 0;
                     while (i < caret_count) : (i += 1) {
                         try errOut.writeAll("^");
+                    }
+
+                    if (colored) {
+                        try errOut.writeAll(reset);
                     }
                 }
                 try errOut.writeAll("\n");
@@ -249,7 +259,7 @@ test "parseBuiltinPrint error" {
 
     const outStream = buffer.outStream();
 
-    const res = parser.testParse(outStream);
+    const res = parser.testParse(outStream, false);
     std.testing.expectError(error.ParseError, res);
     std.testing.expectEqual(@as(usize, 1), parser.errors.items.len);
 

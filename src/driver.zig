@@ -21,8 +21,9 @@ pub fn run(source_file_name: []const u8, allocator: *std.mem.Allocator) !void {
     var parser = try Parser.init(source_file_name, source, std.testing.allocator);
     defer parser.deinit();
 
-    const stderr = std.io.getStdErr().outStream();
-    const nodes = try parser.testParse(stderr);
+    const stderr_file = std.io.getStdErr();
+    const stderr = stderr_file.outStream();
+    const nodes = try parser.testParse(stderr, stderr_file.isTty());
     defer parser.allocator.free(nodes);
 
     var a = try Emitter.emit(nodes, parser, std.testing.allocator);
