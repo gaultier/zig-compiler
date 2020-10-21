@@ -172,19 +172,22 @@ pub const Emitter = struct {
         var label_id: usize = 0;
 
         for (nodes) |node| {
-            if (node.castTag(.BuiltinPrint)) |builtinprint| {
-                const string = builtinprint.arg.getNodeSource(parser);
-                const new_label_id = try appendStringLabelIfNotExists(&data_section, string, &label_id);
+            switch (@TagType(node)) {
+                .BuiltinPrint => |builtinprint| {
+                    const string = builtinprint.arg.getNodeSource(parser);
+                    const new_label_id = try appendStringLabelIfNotExists(&data_section, string, &label_id);
 
-                var args = std.ArrayList(Op).init(&arena.allocator);
-                defer args.deinit();
-                try args.appendSlice(&[_]Op{
-                    Op{ .IntegerLiteral = syscall_write_osx },
-                    Op{ .IntegerLiteral = stdout },
-                    Op{ .LabelAddress = new_label_id },
-                    Op{ .IntegerLiteral = string.len },
-                });
-                try text_section.append(Op{ .Syscall = .{ .args = args.toOwnedSlice() } });
+                    var args = std.ArrayList(Op).init(&arena.allocator);
+                    defer args.deinit();
+                    try args.appendSlice(&[_]Op{
+                        Op{ .IntegerLiteral = syscall_write_osx },
+                        Op{ .IntegerLiteral = stdout },
+                        Op{ .LabelAddress = new_label_id },
+                        Op{ .IntegerLiteral = string.len },
+                    });
+                    try text_section.append(Op{ .Syscall = .{ .args = args.toOwnedSlice() } });
+                },
+                else => unreachable,
             }
         }
 

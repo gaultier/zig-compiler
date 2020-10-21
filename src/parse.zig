@@ -162,9 +162,9 @@ pub const Parser = struct {
     }
 
     fn parsePrimaryType(p: *Parser) std.mem.Allocator.Error!?*Node {
-        if (p.eatToken(.True)) |token| return p.createLiteral(.BoolLiteral, token);
-        if (p.eatToken(.False)) |token| return p.createLiteral(.BoolLiteral, token);
-        if (p.eatToken(.StringLiteral)) |token| return p.createLiteral(.StringLiteral, token);
+        if (p.eatToken(.True)) |token| return p.createLiteral(.{ .BoolLiteral = token });
+        if (p.eatToken(.False)) |token| return p.createLiteral(.{ .BoolLiteral = token });
+        if (p.eatToken(.StringLiteral)) |token| return p.createLiteral(.{ .StringLiteral = token });
         return null;
     }
 
@@ -176,26 +176,24 @@ pub const Parser = struct {
                 return error.ParseError;
             };
             const rParen = try p.expectToken(.RParen);
-            const result = try p.arena.allocator.create(Node.BuiltinPrint);
+            const result = try p.arena.allocator.create(Node);
             errdefer p.arena.allocator.destroy(result);
 
             result.* = .{
-                .base = .{ .tag = .BuiltinPrint },
-                .mainToken = token,
-                .arg = arg,
-                .rParen = rParen,
+                .BuiltinPrint = .{
+                    .mainToken = token,
+                    .arg = arg,
+                    .rParen = rParen,
+                },
             };
-            return &result.base;
+            return result;
         } else return null;
     }
 
-    fn createLiteral(p: *Parser, tag: ast.Node.Tag, token: TokenIndex) !*Node {
-        const result = try p.arena.allocator.create(Node.OneToken);
-        result.* = .{
-            .base = .{ .tag = tag },
-            .token = token,
-        };
-        return &result.base;
+    fn createLiteral(p: *Parser, node: ast.Node) !*Node {
+        const result = try p.arena.allocator.create(Node);
+        result.* = node;
+        return result;
     }
 
     pub fn parse(p: *Parser) Error![]*Node {
@@ -239,14 +237,13 @@ test "parseBuiltinPrint" {
     std.testing.expectEqual(@as(usize, 1), nodes.len);
 
     var node = nodes[0];
-    std.testing.expectEqual(Node.Tag.BuiltinPrint, node.tag);
+    const builtinPrint = node.BuiltinPrint;
 
-    var builtinPrint = node.castTag(.BuiltinPrint).?;
-    var arg = builtinPrint.arg.castTag(.BoolLiteral).?;
+    var arg = builtinPrint.arg.BoolLiteral;
 
-    const arg_loc = parser.token_locs[arg.token];
-    const first_loc = parser.token_locs[builtinPrint.firstToken()];
-    const last_loc = parser.token_locs[builtinPrint.lastToken()];
+    const arg_loc = parser.token_locs[arg];
+    const first_loc = parser.token_locs[node.firstToken()];
+    const last_loc = parser.token_locs[node.lastToken()];
     std.testing.expectEqualSlices(u8, "true", parser.source[arg_loc.start..arg_loc.end]);
     std.testing.expectEqualSlices(u8, "print(true)", parser.source[first_loc.start..last_loc.end]);
 }

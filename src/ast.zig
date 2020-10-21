@@ -58,100 +58,49 @@ pub const Error = union(enum) {
     }
 };
 
-pub const Node = struct {
-    tag: Tag,
+pub const Tag = enum {
+    BoolLiteral,
+    BuiltinPrint,
+    StringLiteral,
+};
 
-    pub fn castTag(base: *Node, comptime tag: Tag) ?*tag.Type() {
-        if (base.tag == tag) {
-            return @fieldParentPtr(tag.Type(), "base", base);
-        }
-        return null;
-    }
+pub const Node = union(Tag) {
+    BoolLiteral: TokenIndex,
+    BuiltinPrint: BuiltinPrint,
+    StringLiteral: TokenIndex,
 
     pub fn getNodeSource(node: *const Node, parser: Parser) []const u8 {
         const first_token = parser.token_locs[node.firstToken()];
         const last_token = parser.token_locs[node.lastToken()];
-        return if (node.tag == .StringLiteral) parser.source[first_token.start + 1 .. last_token.end - 1] else parser.source[first_token.start..last_token.end];
+        return if (@TagType(node) == .StringLiteral) parser.source[first_token.start + 1 .. last_token.end - 1] else parser.source[first_token.start..last_token.end];
     }
 
-    pub fn firstToken(base: *const Node) TokenIndex {
-        inline for (@typeInfo(Tag).Enum.fields) |field| {
-            const tag = @intToEnum(Tag, field.value);
-            if (base.tag == tag) {
-                return @fieldParentPtr(tag.Type(), "base", base).firstToken();
-            }
+    pub fn firstToken(node: *const Node) TokenIndex {
+        switch (@TagType(node)) {
+            .BoolLiteral, .StringLiteral => |token_index| return token_index,
+            .BuiltinPrint => |builtin_print| return builtin_print.mainToken,
         }
-        unreachable;
     }
 
-    pub fn lastToken(base: *const Node) TokenIndex {
-        inline for (@typeInfo(Tag).Enum.fields) |field| {
-            const tag = @intToEnum(Tag, field.value);
-            if (base.tag == tag) {
-                return @fieldParentPtr(tag.Type(), "base", base).lastToken();
-            }
+    pub fn lastToken(node: *const Node) TokenIndex {
+        switch (@TagType(node)) {
+            .BoolLiteral, .StringLiteral => |token_index| return token_index,
+            .BuiltinPrint => |builtin_print| return builtin_print.rParen,
         }
-        unreachable;
     }
 
-    pub const Tag = enum {
-        BoolLiteral,
-        BuiltinPrint,
-        StringLiteral,
-
-        pub fn Type(tag: Tag) type {
-            return switch (tag) {
-                .BoolLiteral, .StringLiteral => OneToken,
-                .BuiltinPrint => BuiltinPrint,
-            };
+    pub fn iterate(node: *const Node, index: usize) ?*Node {
+        switch (@TagType(node)) {
+            .BoolLiteral, .StringLiteral => return null,
+            .BuiltinPrint => |builtin_print| if (index < 1) return builtin_print.arg else return null,
         }
-    };
+    }
 
     pub const BuiltinPrint = struct {
-        base: Node,
         arg: *Node,
         mainToken: TokenIndex,
         rParen: TokenIndex,
-
-        pub fn firstToken(base: *const BuiltinPrint) TokenIndex {
-            return base.mainToken;
-        }
-
-        pub fn lastToken(base: *const BuiltinPrint) TokenIndex {
-            return base.rParen;
-        }
-
-        pub fn iterate(self: *const BuiltinPrint, index: usize) ?*Node {
-            if (index < 1) return self.arg else return null;
-        }
     };
-
-    pub const OneToken = struct {
-        base: Node,
-        token: TokenIndex,
-
-        pub fn firstToken(self: *const OneToken) TokenIndex {
-            return self.token;
-        }
-
-        pub fn lastToken(self: *const OneToken) TokenIndex {
-            return self.token;
-        }
-
-        pub fn iterate(self: *const OneToken, index: usize) ?*Node {
-            return null;
-        }
-    };
-
-    pub fn iterate(base: *Node, index: usize) ?*Node {
-        inline for (@typeInfo(Tag).Enum.fields) |field| {
-            const tag = @intToEnum(Tag, field.value);
-            if (base.tag == tag) {
-                return @fieldParentPtr(tag.Type(), "base", base).iterate(index);
-            }
-        }
-        unreachable;
-    }
 
     pub fn dump(self: *Node, indent: usize) void {
         {
@@ -160,7 +109,7 @@ pub const Node = struct {
                 std.debug.warn(" ", .{});
             }
         }
-        std.debug.warn("{}\n", .{@tagName(self.tag)});
+        std.debug.warn("{}\n", .{@tagName(self)});
 
         var child_i: usize = 0;
         while (self.iterate(child_i)) |child| : (child_i += 1) {
