@@ -13,6 +13,15 @@ fn getBaseSourceFileName(file_name: []const u8) []const u8 {
 }
 
 pub fn run(source_file_name: []const u8, allocator: *std.mem.Allocator) !void {
+    switch (std.builtin.os.tag) {
+        .macos => {},
+        else => return error.UnsupportedOs,
+    }
+    switch (std.builtin.arch) {
+        .x86_64 => {},
+        else => return error.UnsupportedArchitecture,
+    }
+
     if (!isSourceFileNameValid(source_file_name)) return error.InvalidSourceFile;
 
     const source = try std.fs.cwd().readFileAlloc(allocator, source_file_name, 1_000_000);
