@@ -139,21 +139,25 @@ const stderr: usize = 2;
 const syscall_exit_osx: usize = 0x2000001;
 const syscall_write_osx: usize = 0x2000004;
 
-fn appendStringLabelIfNotExists(data_section: *std.ArrayList(Op), string: []const u8, label_id: usize) !void {
+fn appendStringLabelIfNotExists(data_section: *std.ArrayList(Op), string: []const u8, label_id: *usize) !usize {
     for (data_section.items) |*d| {
         switch (d.*) {
             .StringLabel => |op| {
-                if (std.mem.eql(u8, op.string, string)) return;
+                if (std.mem.eql(u8, op.string, string)) return op.label_id;
             },
             else => {},
         }
     }
+    const new_label_id = label_id.*;
     try data_section.append(Op{
         .StringLabel = .{
-            .label_id = label_id,
+            .label_id = new_label_id,
             .string = string,
         },
     });
+    label_id.* += 1;
+
+    return new_label_id;
 }
 
 pub const Emitter = struct {
@@ -169,16 +173,15 @@ pub const Emitter = struct {
 
         for (nodes) |node| {
             if (node.castTag(.BuiltinPrint)) |builtinprint| {
-                label_id += 1;
                 const string = builtinprint.arg.getNodeSource(parser);
-                try appendStringLabelIfNotExists(&data_section, string, label_id);
+                const new_label_id = try appendStringLabelIfNotExists(&data_section, string, &label_id);
 
                 var args = std.ArrayList(Op).init(&arena.allocator);
                 defer args.deinit();
                 try args.appendSlice(&[_]Op{
                     Op{ .IntegerLiteral = syscall_write_osx },
                     Op{ .IntegerLiteral = stdout },
-                    Op{ .LabelAddress = label_id },
+                    Op{ .LabelAddress = new_label_id },
                     Op{ .IntegerLiteral = string.len },
                 });
                 try text_section.append(Op{ .Syscall = .{ .args = args.toOwnedSlice() } });

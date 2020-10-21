@@ -1,4 +1,3 @@
 zig-cache
-*.asm
-*.exe
-*.o
+e2e/*
+!e2e/*.kts
