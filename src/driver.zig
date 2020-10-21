@@ -48,7 +48,7 @@ pub fn run(source_file_name: []const u8, allocator: *std.mem.Allocator) !void {
 
         switch (exec_result.term) {
             .Exited => |code| if (code != 0) {
-                std.debug.warn("`as` invocation failed: command={} {} {} {} exit_code={} stdout={} stderr={}\n", .{ argv[0], argv[1], argv[2], argv[3], code, exec_result.stdout, exec_result.stderr });
+                std.debug.warn("`as` invocation failed: command=`{} {} {} {}` exit_code={} stdout={} stderr={}\n", .{ argv[0], argv[1], argv[2], argv[3], code, exec_result.stdout, exec_result.stderr });
                 return error.AssemblerFailed;
             },
             else => {
@@ -68,7 +68,7 @@ pub fn run(source_file_name: []const u8, allocator: *std.mem.Allocator) !void {
 
         switch (exec_result.term) {
             .Exited => |code| if (code != 0) {
-                std.debug.warn("`ld` invocation failed: command={} {} {} {} exit_code={} stdout={} stderr={}\n", .{ argv[0], argv[1], argv[2], argv[3], code, exec_result.stdout, exec_result.stderr });
+                std.debug.warn("`ld` invocation failed: command=`{} {} {} {}` exit_code={} stdout={} stderr={}\n", .{ argv[0], argv[1], argv[2], argv[3], code, exec_result.stdout, exec_result.stderr });
                 return error.AssemblerFailed;
             },
             else => {
