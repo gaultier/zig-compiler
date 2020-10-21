@@ -12,6 +12,7 @@ pub const Token = struct {
         False,
         Identifier,
         LineComment,
+        StringLiteral,
         Eof,
         Invalid,
 
@@ -24,6 +25,7 @@ pub const Token = struct {
                 .False => "false",
                 .Identifier => "Identifier",
                 .LineComment => "LineComment",
+                .StringLiteral => "StringLiteral",
                 .Eof => "EOF",
                 .Invalid => "Invalid",
             };
@@ -61,6 +63,7 @@ pub const Lex = struct {
     const State = enum {
         start,
         identifier,
+        StringLiteral,
     };
 
     pub fn next(self: *Lex) Token {
@@ -95,11 +98,22 @@ pub const Lex = struct {
                         state = .identifier;
                         result.id = .Identifier;
                     },
+                    '"' => {
+                        result.id = .StringLiteral;
+                        state = .StringLiteral;
+                    },
                     else => {
                         result.id = .Invalid;
                         self.index += 1;
                         break;
                     },
+                },
+                .StringLiteral => switch (c) {
+                    '"' => {
+                        self.index += 1;
+                        break;
+                    },
+                    else => {},
                 },
                 .identifier => switch (c) {
                     'a'...'z', 'A'...'Z', '_' => {},
@@ -110,6 +124,11 @@ pub const Lex = struct {
                         break;
                     },
                 },
+            }
+        } else if (self.index == self.source.len) {
+            switch (state) {
+                .StringLiteral => result.id = .Invalid,
+                else => {},
             }
         }
         result.loc.end = self.index;
@@ -159,5 +178,11 @@ test "keywords" {
         TestToken{ .id = .True, .start = 1, .end = 5 },
         TestToken{ .id = .False, .start = 7, .end = 12 },
         TestToken{ .id = .BuiltinPrint, .start = 13, .end = 18 },
+    });
+}
+
+test "string" {
+    testingExpectTokens(" \"foo\"", &[_]TestToken{
+        TestToken{ .id = .StringLiteral, .start = 1, .end = 6 },
     });
 }
