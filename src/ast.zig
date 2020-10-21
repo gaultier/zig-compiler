@@ -71,7 +71,7 @@ pub const Node = struct {
     pub fn getNodeSource(node: *const Node, parser: Parser) []const u8 {
         const first_token = parser.token_locs[node.firstToken()];
         const last_token = parser.token_locs[node.lastToken()];
-        return parser.source[first_token.start..last_token.end];
+        return if (node.tag == .StringLiteral) parser.source[first_token.start + 1 .. last_token.end - 1] else parser.source[first_token.start..last_token.end];
     }
 
     pub fn firstToken(base: *const Node) TokenIndex {
