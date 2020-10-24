@@ -39,7 +39,7 @@ pub fn run(source_file_name: []const u8, allocator: *std.mem.Allocator) !void {
     defer a.deinit();
 
     const base_file_name = getBaseSourceFileName(source_file_name);
-    var asm_file_name = try std.fmt.allocPrintZ(allocator, "." ++ std.fs.path.sep_str ++ "{}.asm", .{base_file_name});
+    var asm_file_name = try std.fmt.allocPrint(allocator, "." ++ std.fs.path.sep_str ++ "{}.asm", .{base_file_name});
     defer allocator.free(asm_file_name);
 
     var asm_file = try std.fs.cwd().createFile(asm_file_name, .{});
@@ -48,7 +48,7 @@ pub fn run(source_file_name: []const u8, allocator: *std.mem.Allocator) !void {
     try a.dump(asm_file.writer());
 
     // as
-    var object_file_name = try std.fmt.allocPrintZ(allocator, "." ++ std.fs.path.sep_str ++ "{}.o", .{base_file_name});
+    var object_file_name = try std.fmt.allocPrint(allocator, "." ++ std.fs.path.sep_str ++ "{}.o", .{base_file_name});
     defer allocator.free(object_file_name);
 
     {
