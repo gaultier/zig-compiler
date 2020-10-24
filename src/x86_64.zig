@@ -172,7 +172,7 @@ pub const Emitter = struct {
         var label_id: usize = 0;
 
         for (nodes) |node| {
-            switch (@TagType(node)) {
+            switch (node.*) {
                 .BuiltinPrint => |builtinprint| {
                     const string = builtinprint.arg.getNodeSource(parser);
                     const new_label_id = try appendStringLabelIfNotExists(&data_section, string, &label_id);

@@ -72,25 +72,25 @@ pub const Node = union(Tag) {
     pub fn getNodeSource(node: *const Node, parser: Parser) []const u8 {
         const first_token = parser.token_locs[node.firstToken()];
         const last_token = parser.token_locs[node.lastToken()];
-        return if (@TagType(node) == .StringLiteral) parser.source[first_token.start + 1 .. last_token.end - 1] else parser.source[first_token.start..last_token.end];
+        return if (@as(Tag, node.*) == .StringLiteral) parser.source[first_token.start + 1 .. last_token.end - 1] else parser.source[first_token.start..last_token.end];
     }
 
     pub fn firstToken(node: *const Node) TokenIndex {
-        switch (@TagType(node)) {
+        switch (node.*) {
             .BoolLiteral, .StringLiteral => |token_index| return token_index,
             .BuiltinPrint => |builtin_print| return builtin_print.mainToken,
         }
     }
 
     pub fn lastToken(node: *const Node) TokenIndex {
-        switch (@TagType(node)) {
+        switch (node.*) {
             .BoolLiteral, .StringLiteral => |token_index| return token_index,
             .BuiltinPrint => |builtin_print| return builtin_print.rParen,
         }
     }
 
     pub fn iterate(node: *const Node, index: usize) ?*Node {
-        switch (@TagType(node)) {
+        switch (node.*) {
             .BoolLiteral, .StringLiteral => return null,
             .BuiltinPrint => |builtin_print| if (index < 1) return builtin_print.arg else return null,
         }
