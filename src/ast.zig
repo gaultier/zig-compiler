@@ -72,7 +72,10 @@ pub const Node = union(Tag) {
     pub fn getNodeSource(node: *const Node, parser: Parser) []const u8 {
         const first_token = parser.token_locs[node.firstToken()];
         const last_token = parser.token_locs[node.lastToken()];
-        return if (@as(Tag, node.*) == .StringLiteral) parser.source[first_token.start + 1 .. last_token.end - 1] else parser.source[first_token.start..last_token.end];
+        switch (node.*) {
+            .StringLiteral => return parser.source[first_token.start + 1 .. last_token.end - 1],
+            else => return parser.source[first_token.start..last_token.end],
+        }
     }
 
     pub fn firstToken(node: *const Node) TokenIndex {
@@ -109,7 +112,7 @@ pub const Node = union(Tag) {
                 std.debug.warn(" ", .{});
             }
         }
-        std.debug.warn("{}\n", .{@tagName(self)});
+        std.debug.warn("{}\n", .{@tagName(self.*)});
 
         var child_i: usize = 0;
         while (self.iterate(child_i)) |child| : (child_i += 1) {
